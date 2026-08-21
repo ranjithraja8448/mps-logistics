@@ -647,7 +647,6 @@ function ParcelModal({item, creditAuthList, onClose, db, parcels, setParcels, us
     if(item.payment === "To Pay" && !payMethod) return showMsg("Please specify payment mode!", "error");
     
     let finalCreditCustomer = item.creditCustomer || "";
-    
     if (item.payment === "To Pay" && payMethod === "Credit") {
         if (!delCreditCustomer) return showMsg("Search and Select a Credit Account!", "error");
         finalCreditCustomer = delCreditCustomer; 
@@ -655,7 +654,7 @@ function ParcelModal({item, creditAuthList, onClose, db, parcels, setParcels, us
     }
 
     const dMode = item.payment === "To Pay" ? `[Mode: ${payMethod}]` : "";
-    const updatedHistory = [...item.history, {status: "Delivered", loc: item.to, time: new Date().toLocaleString()}];
+    const updatedHistory = [...item.history, {status: "Delivered", loc: item.to, time: new Date().toLocaleString(), user: user.username}];
     
     const modifiedItem = {
         ...item, status: "Delivered", history: updatedHistory, deliveryMode: payMethod, 
@@ -717,10 +716,10 @@ function ParcelModal({item, creditAuthList, onClose, db, parcels, setParcels, us
            <div className="relative border-l-2 border-indigo-500/30 ml-2 space-y-4">
              {item.history && item.history.map((h, i) => (
                 <div key={i} className="relative pl-4 animate-fade-in">
-                  <div className={`absolute -left-[5px] top-1.5 w-2 h-2 rounded-full ${i === item.history.length-1 ? 'bg-emerald-500 ring-4 ring-emerald-500/20' : 'bg-indigo-500'}`}></div>
+                  <div className={`absolute -left-[5px] top-1.5 w-2 h-2 rounded-full ${i === item.history.length-1 ? 'bg-emerald-500 ring-4 ring-emerald-500/20' : (h.status === 'Edited' ? 'bg-amber-500' : 'bg-indigo-500')}`}></div>
                   <p className="text-xs font-bold">{h.status} <span className="opacity-50 font-normal ml-1">@ {h.loc}</span></p>
-                  <p className="text-[9px] opacity-50 mt-0.5">{h.time}</p>
-                  {h.reason && <p className="text-[10px] text-red-500 mt-1 font-bold bg-red-500/10 px-2 py-1 rounded inline-block">Reason: {h.reason}</p>}
+                  <p className="text-[9px] opacity-50 mt-0.5">{h.time} {h.user && <span className="font-bold text-indigo-400">| 👤 By: {h.user}</span>}</p>
+                  {h.reason && <p className={`text-[10px] mt-1 font-bold px-2 py-1 rounded inline-block ${h.status === 'Edited' ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>Reason: {h.reason}</p>}
                 </div>
              ))}
            </div>
@@ -1571,7 +1570,9 @@ function DeletedParcelsLog({ parcels, isDark }) {
 }
 
 function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user, creditAuthList, setCreditAuthList, setGlobalView}) {
-  const [tab, setTab] = useState('parcels'); const [editF, setEditF] = useState(null); 
+  const [tab, setTab] = useState('parcels'); 
+  const [editF, setEditF] = useState(null); 
+  const [editReason, setEditReason] = useState(""); // 🔥 NEW: Edit Reason State
   const [newUser, setNewUser] = useState(""); const [newPass, setNewPass] = useState(""); const [newRole, setNewRole] = useState("staff"); const [newBranch, setNewBranch] = useState(CITIES[0]);
   const [newCPhone, setNewCPhone] = useState(""); const [newCName, setNewCName] = useState(""); const [paymentFilter, setPaymentFilter] = useState("All"); const [branchFilter, setBranchFilter] = useState(user.branch); const [searchQuery, setSearchQuery] = useState("");
   const d = new Date(); const todayStr = d.toISOString().split('T')[0]; d.setDate(1); const firstDayStr = d.toISOString().split('T')[0];
@@ -1598,8 +1599,28 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     setCreditAuthList(newList); await db.deleteCreditAuth(phone); showMsg("Credit Auth Revoked", "error"); 
   };
 
-  const deleteRecord = async (id) => { const reason = window.prompt(`Exact reason for deleting ${id}:`); if (!reason || reason.trim() === "") return showMsg("Deletion reason mandatory.", "error"); const target = parcels.find(p => p.id === id); const updatedHistory = [...target.history, {status: "Deleted", loc: user.branch, time: new Date().toLocaleString(), reason: reason}]; const updatedParcel = { ...target, status: 'Deleted', deletedBy: user.username, deleteReason: reason, history: updatedHistory }; await db.updateParcel(id, updatedParcel); setParcels(parcels.map(p => p.id === id ? updatedParcel : p)); showMsg("Consignment dropped.", "error"); };
-  const saveOverrides = async () => { await db.updateParcel(editF.id, editF); setParcels(parcels.map(p => p.id === editF.id ? editF : p)); setEditF(null); showMsg("Consignment updated"); };
+  const deleteRecord = async (id) => { const reason = window.prompt(`Exact reason for deleting ${id}:`); if (!reason || reason.trim() === "") return showMsg("Deletion reason mandatory.", "error"); const target = parcels.find(p => p.id === id); const updatedHistory = [...target.history, {status: "Deleted", loc: user.branch, time: new Date().toLocaleString(), user: user.username, reason: reason}]; const updatedParcel = { ...target, status: 'Deleted', deletedBy: user.username, deleteReason: reason, history: updatedHistory }; await db.updateParcel(id, updatedParcel); setParcels(parcels.map(p => p.id === id ? updatedParcel : p)); showMsg("Consignment dropped.", "error"); };
+  
+  // 🔥 UPDATED: Save Overrides with Reason and Role Check 🔥
+  const saveOverrides = async () => { 
+      if(!editReason.trim()) return showMsg("Reason for edit is mandatory!", "error");
+      
+      const updatedHistory = [...editF.history, {
+          status: "Edited", 
+          loc: user.branch, 
+          time: new Date().toLocaleString(), 
+          user: user.username,
+          reason: editReason
+      }];
+      
+      const finalData = { ...editF, history: updatedHistory };
+      
+      await db.updateParcel(editF.id, finalData); 
+      setParcels(parcels.map(p => p.id === editF.id ? finalData : p)); 
+      setEditF(null); 
+      setEditReason("");
+      showMsg("Consignment updated and logged!"); 
+  };
 
   const sortedTableData = [...parcels].reverse().filter(p => {
     if (p.status === 'Deleted' && !isSuper) return false;
@@ -1652,7 +1673,10 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     setParcels(updatedParcelsList); showMsg(`Successfully settled ${invoiceParcels.length} parcels for ${invCustomer}!`);
   };
 
-  const uniqueCompanies = [...new Set(creditAuthList.map(c => c.company))];
+  const uniqueCompanies = [...new Set([
+    ...creditAuthList.map(c => c.company),
+    ...parcels.map(p => p.creditCustomer).filter(Boolean)
+  ])];
 
   const unpaidCreditParcels = parcels.filter(p => p.status !== 'Deleted' && !p.creditSettled && (p.payment === 'Credit' || p.deliveryMode === 'Credit' || (p.notes && p.notes.includes("Mode: Credit"))));
   const customerBalances = {};
@@ -1758,7 +1782,56 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
           {isSuper && <DeletedParcelsLog parcels={parcels} isDark={isDark} />}
         </>
       )}
-      {editF && ( <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[200]"><div className={`${cardBg} p-6 rounded-2xl max-w-lg w-full space-y-4 animate-bounce-in`}><h3 className="font-black text-lg">Modify Manifest Parameters: {editF.id}</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><input value={editF.sName} onChange={e=>setEditF({...editF, sName:e.target.value.toUpperCase()})} placeholder="Sender Identity" className={`p-2 border rounded text-sm uppercase ${inputBg}`} /><input value={editF.rName} onChange={e=>setEditF({...editF, rName:e.target.value.toUpperCase()})} placeholder="Receiver Identity" className={`p-2 border rounded text-sm uppercase ${inputBg}`} /><select value={editF.status} onChange={e=>setEditF({...editF, status:e.target.value})} className={`p-2 border rounded text-sm ${inputBg}`}>{STATUSES.filter(s=>s!=='Deleted').map(s=><option key={s}>{s}</option>)}</select><input type="number" value={editF.price} onChange={e=>setEditF({...editF, price:Number(e.target.value)})} placeholder="Price Override" className={`p-2 border rounded font-bold text-sm ${inputBg}`} /></div><div className="flex gap-2 mt-4"><button onClick={saveOverrides} className="bg-indigo-600 text-white font-bold py-2 px-4 rounded-xl flex-1 text-sm">Save Changes</button><button onClick={()=>setEditF(null)} className="bg-slate-500 text-white py-2 px-4 rounded-xl text-sm">Dismiss</button></div></div></div> )}
+
+      {/* 🔥 NEW RBAC EDIT POPUP 🔥 */}
+      {editF && ( 
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[200]">
+           <div className={`${cardBg} p-6 rounded-2xl max-w-lg w-full space-y-4 animate-bounce-in`}>
+             <h3 className="font-black text-lg">Modify Manifest Parameters: {editF.id}</h3>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               {/* 1. Both Admin & Superadmin can edit Name & Status */}
+               <div className="flex flex-col">
+                 <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Sender Name</label>
+                 <input value={editF.sName} onChange={e=>setEditF({...editF, sName:e.target.value.toUpperCase()})} className={`p-2 border rounded text-sm uppercase ${inputBg}`} />
+               </div>
+               <div className="flex flex-col">
+                 <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Receiver Name</label>
+                 <input value={editF.rName} onChange={e=>setEditF({...editF, rName:e.target.value.toUpperCase()})} className={`p-2 border rounded text-sm uppercase ${inputBg}`} />
+               </div>
+               <div className="flex flex-col sm:col-span-2">
+                 <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Parcel Status</label>
+                 <select value={editF.status} onChange={e=>setEditF({...editF, status:e.target.value})} className={`p-2 border rounded text-sm ${inputBg}`}>
+                   {STATUSES.filter(s=>s!=='Deleted').map(s=><option key={s}>{s}</option>)}
+                 </select>
+               </div>
+
+               {/* 2. ONLY Superadmin can edit Price & Payment Mode */}
+               <div className="flex flex-col">
+                 <label className={`text-[10px] uppercase font-bold mb-1 ${isSuper ? 'text-indigo-500' : 'opacity-30'}`}>Price Override 🔒</label>
+                 <input type="number" disabled={!isSuper} value={editF.price} onChange={e=>setEditF({...editF, price:Number(e.target.value)})} placeholder="Superadmin Only" className={`p-2 border rounded font-bold text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit price" : ""} />
+               </div>
+               <div className="flex flex-col">
+                 <label className={`text-[10px] uppercase font-bold mb-1 ${isSuper ? 'text-indigo-500' : 'opacity-30'}`}>Payment Mode 🔒</label>
+                 <select disabled={!isSuper} value={editF.payment} onChange={e=>setEditF({...editF, payment:e.target.value})} className={`p-2 border rounded font-bold text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`}>
+                    {PAY_MODES.map(p=><option key={p} value={p}>{p}</option>)}
+                 </select>
+               </div>
+             </div>
+
+             {/* 3. Reason Tracker (Mandatory) */}
+             <div className="mt-2 bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
+               <label className="text-[10px] uppercase font-bold text-amber-600 block mb-1">Reason for Edit (Mandatory) *</label>
+               <input value={editReason} onChange={e=>setEditReason(e.target.value)} placeholder="Type reason... (Ex: Corrected spelling, updated price)" className={`w-full p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-amber-500 ${inputBg}`} />
+             </div>
+
+             <div className="flex gap-2 mt-4">
+               <button onClick={saveOverrides} className="bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl flex-1 text-sm">Save Changes</button>
+               <button onClick={()=>{setEditF(null); setEditReason("");}} className="bg-slate-500 text-white py-3 px-4 rounded-xl text-sm">Dismiss</button>
+             </div>
+           </div>
+        </div> 
+      )}
     </div>
   );
 }
