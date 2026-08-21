@@ -837,6 +837,48 @@ function Dashboard({parcels, isDark, user, setPage, setTrackFilter, setGlobalVie
      }
   });
 
+  // 🔥 NEW: Extract and Sort Edit / Delete Logs 🔥
+  const parseLocTime = (timeStr) => {
+     if(!timeStr) return 0;
+     try {
+         if(timeStr.includes(',')) {
+             const parts = timeStr.split(',');
+             const datePart = parts[0].trim();
+             const timePart = parts[1].trim();
+             if(datePart.includes('/')) {
+                 const [d, m, y] = datePart.split('/');
+                 return new Date(`${m}/${d}/${y} ${timePart}`).getTime() || new Date(timeStr).getTime() || 0;
+             }
+         }
+         return new Date(timeStr).getTime() || 0;
+     } catch { return 0; }
+  };
+
+  const editLogs = [];
+  // User branch condition thagapadi full parcels thedi log edukkum
+  const targetParcels = (user.role === 'superadmin' && selectedBranch === 'All') ? parcels : branchParcels;
+  
+  targetParcels.forEach(p => {
+      if(p.history) {
+          p.history.forEach(h => {
+              // Edit pandrathum, Delete pandrathum tracking-kku varum
+              if(h.status === 'Edited' || h.status === 'Deleted') {
+                  editLogs.push({
+                      lr: p.id,
+                      time: h.time,
+                      user: h.user || 'Unknown',
+                      reason: h.reason || 'No reason provided',
+                      loc: h.loc,
+                      status: h.status,
+                      parsedTime: parseLocTime(h.time)
+                  });
+              }
+          });
+      }
+  });
+  // Sort by newest edit first
+  editLogs.sort((a,b) => b.parsedTime - a.parsedTime);
+
   return (
     <div className="space-y-6">
       {(user.role === 'superadmin' || user.branch === 'All') && (
@@ -958,6 +1000,45 @@ function Dashboard({parcels, isDark, user, setPage, setTrackFilter, setGlobalVie
                      <span className="text-[9px] opacity-70 font-bold mt-0.5">P: ₹{tPaid} | TP: ₹{tToPay} | C: ₹{tCredit}</span>
                   </div>
                </div>
+            )}
+         </div>
+      </div>
+
+      {/* 🔥 NEW AUDIT TRAIL LOG SECTION 🔥 */}
+      <div className={`${cardBg} p-4 md:p-6 rounded-2xl border shadow-sm mt-6`}>
+         <div className="flex justify-between items-center mb-4 border-b border-slate-500/20 pb-2">
+            <h3 className="font-black text-sm md:text-base text-amber-500 uppercase tracking-widest">🕵️‍♂️ Live Audit & Edit Logs</h3>
+            <span className="bg-amber-500/10 text-amber-500 text-[10px] px-3 py-1 rounded-full font-bold">{editLogs.length} Records</span>
+         </div>
+         <div className="max-h-80 overflow-y-auto custom-scrollbar pr-2 space-y-3">
+            {editLogs.length === 0 ? (
+                <p className="text-xs opacity-50 text-center py-6 font-bold">System is clean! No edits or deletions recorded yet.</p>
+            ) : (
+                editLogs.map((log, i) => (
+                    <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between p-3 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'} hover:bg-black/5 transition-colors gap-3 animate-fade-in`}>
+                        <div className="flex items-center gap-3 md:w-1/4">
+                            <div className={`p-2 rounded-lg ${log.status === 'Deleted' ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
+                                <span className="text-lg">{log.status === 'Deleted' ? '🗑️' : '✏️'}</span>
+                            </div>
+                            <div>
+                                <p className="text-[12px] font-black text-indigo-500 cursor-pointer hover:underline" onClick={() => {
+                                    const p = parcels.find(x => x.id === log.lr);
+                                    if(p) setGlobalView(p);
+                                }}>📦 {log.lr}</p>
+                                <p className="text-[10px] font-bold mt-0.5">👤 {log.user} <span className="opacity-50 font-normal">@ {log.loc}</span></p>
+                            </div>
+                        </div>
+                        <div className="flex-1 md:px-4">
+                            <p className={`text-[11px] font-bold px-3 py-1.5 rounded-lg inline-block border ${log.status === 'Deleted' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
+                                {log.reason}
+                            </p>
+                        </div>
+                        <div className="text-left md:text-right md:w-1/4">
+                            <p className="text-[10px] opacity-60 font-bold">{log.time}</p>
+                            <p className={`text-[10px] font-black uppercase mt-0.5 tracking-wider ${log.status === 'Deleted' ? 'text-red-500' : 'text-amber-500'}`}>{log.status}</p>
+                        </div>
+                    </div>
+                ))
             )}
          </div>
       </div>
