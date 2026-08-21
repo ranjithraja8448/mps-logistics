@@ -1572,7 +1572,7 @@ function DeletedParcelsLog({ parcels, isDark }) {
 function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user, creditAuthList, setCreditAuthList, setGlobalView}) {
   const [tab, setTab] = useState('parcels'); 
   const [editF, setEditF] = useState(null); 
-  const [editReason, setEditReason] = useState(""); // 🔥 NEW: Edit Reason State
+  const [editReason, setEditReason] = useState(""); 
   const [newUser, setNewUser] = useState(""); const [newPass, setNewPass] = useState(""); const [newRole, setNewRole] = useState("staff"); const [newBranch, setNewBranch] = useState(CITIES[0]);
   const [newCPhone, setNewCPhone] = useState(""); const [newCName, setNewCName] = useState(""); const [paymentFilter, setPaymentFilter] = useState("All"); const [branchFilter, setBranchFilter] = useState(user.branch); const [searchQuery, setSearchQuery] = useState("");
   const d = new Date(); const todayStr = d.toISOString().split('T')[0]; d.setDate(1); const firstDayStr = d.toISOString().split('T')[0];
@@ -1601,7 +1601,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
 
   const deleteRecord = async (id) => { const reason = window.prompt(`Exact reason for deleting ${id}:`); if (!reason || reason.trim() === "") return showMsg("Deletion reason mandatory.", "error"); const target = parcels.find(p => p.id === id); const updatedHistory = [...target.history, {status: "Deleted", loc: user.branch, time: new Date().toLocaleString(), user: user.username, reason: reason}]; const updatedParcel = { ...target, status: 'Deleted', deletedBy: user.username, deleteReason: reason, history: updatedHistory }; await db.updateParcel(id, updatedParcel); setParcels(parcels.map(p => p.id === id ? updatedParcel : p)); showMsg("Consignment dropped.", "error"); };
   
-  // 🔥 UPDATED: Save Overrides with Reason and Role Check 🔥
   const saveOverrides = async () => { 
       if(!editReason.trim()) return showMsg("Reason for edit is mandatory!", "error");
       
@@ -1783,46 +1782,75 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
         </>
       )}
 
-      {/* 🔥 NEW RBAC EDIT POPUP 🔥 */}
+      {/* 🔥 NEW FULL-POWER RBAC EDIT POPUP 🔥 */}
       {editF && ( 
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[200]">
-           <div className={`${cardBg} p-6 rounded-2xl max-w-lg w-full space-y-4 animate-bounce-in`}>
-             <h3 className="font-black text-lg">Modify Manifest Parameters: {editF.id}</h3>
+           <div className={`${cardBg} p-6 rounded-2xl max-w-2xl w-full space-y-4 animate-bounce-in max-h-[90vh] overflow-y-auto custom-scrollbar`}>
+             <div className="flex justify-between items-center border-b border-slate-500/20 pb-2">
+                 <h3 className="font-black text-lg">Modify Manifest: {editF.id}</h3>
+                 <span className="bg-indigo-500 text-white text-[10px] px-2 py-1 rounded-full">{editF.date}</span>
+             </div>
              
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               {/* 1. Both Admin & Superadmin can edit Name & Status */}
-               <div className="flex flex-col">
-                 <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Sender Name</label>
-                 <input value={editF.sName} onChange={e=>setEditF({...editF, sName:e.target.value.toUpperCase()})} className={`p-2 border rounded text-sm uppercase ${inputBg}`} />
+               {/* SENDER DETAILS */}
+               <div className="space-y-3 bg-black/5 p-3 rounded-xl border border-slate-500/10">
+                  <h4 className="text-[10px] uppercase font-black text-indigo-500">Sender Details</h4>
+                  <input value={editF.sName} onChange={e=>setEditF({...editF, sName:e.target.value.toUpperCase()})} placeholder="Sender Name" className={`w-full p-2 border rounded text-sm uppercase ${inputBg}`} />
+                  <input disabled={!isSuper} value={editF.sPhone} onChange={e=>setEditF({...editF, sPhone:e.target.value})} placeholder="Sender Phone 🔒" className={`w-full p-2 border rounded text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
+                  <input disabled={!isSuper} value={editF.sGst} onChange={e=>setEditF({...editF, sGst:e.target.value.toUpperCase()})} placeholder="Sender GST 🔒" className={`w-full p-2 border rounded text-sm uppercase ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
                </div>
-               <div className="flex flex-col">
-                 <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Receiver Name</label>
-                 <input value={editF.rName} onChange={e=>setEditF({...editF, rName:e.target.value.toUpperCase()})} className={`p-2 border rounded text-sm uppercase ${inputBg}`} />
+
+               {/* RECEIVER DETAILS */}
+               <div className="space-y-3 bg-black/5 p-3 rounded-xl border border-slate-500/10">
+                  <h4 className="text-[10px] uppercase font-black text-emerald-500">Receiver Details</h4>
+                  <input value={editF.rName} onChange={e=>setEditF({...editF, rName:e.target.value.toUpperCase()})} placeholder="Receiver Name" className={`w-full p-2 border rounded text-sm uppercase ${inputBg}`} />
+                  <input disabled={!isSuper} value={editF.rPhone} onChange={e=>setEditF({...editF, rPhone:e.target.value})} placeholder="Receiver Phone 🔒" className={`w-full p-2 border rounded text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
+                  <input disabled={!isSuper} value={editF.rGst} onChange={e=>setEditF({...editF, rGst:e.target.value.toUpperCase()})} placeholder="Receiver GST 🔒" className={`w-full p-2 border rounded text-sm uppercase ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
                </div>
-               <div className="flex flex-col sm:col-span-2">
+
+               {/* LOGISTICS DETAILS (SUPERADMIN ONLY) */}
+               <div className="space-y-3 bg-black/5 p-3 rounded-xl border border-slate-500/10 sm:col-span-2">
+                  <h4 className="text-[10px] uppercase font-black text-amber-500">Logistics & Cargo</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                     <select disabled={!isSuper} value={editF.from} onChange={e=>setEditF({...editF, from:e.target.value})} className={`p-2 border rounded text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""}>
+                       <option value="">Origin 🔒</option>{CITIES.map(c=><option key={c}>{c}</option>)}
+                     </select>
+                     <select disabled={!isSuper} value={editF.to} onChange={e=>setEditF({...editF, to:e.target.value})} className={`p-2 border rounded text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""}>
+                       <option value="">Destination 🔒</option>{CITIES.map(c=><option key={c}>{c}</option>)}
+                     </select>
+                     <input disabled={!isSuper} type="number" value={editF.count} onChange={e=>setEditF({...editF, count:e.target.value})} placeholder="Qty 🔒" className={`p-2 border rounded text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
+                     <select disabled={!isSuper} value={editF.type} onChange={e=>setEditF({...editF, type:e.target.value})} className={`p-2 border rounded text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""}>
+                       <option value="">Type 🔒</option>{TYPES.map(t=><option key={t}>{t}</option>)}
+                     </select>
+                  </div>
+               </div>
+
+               {/* STATUS & FINANCIALS */}
+               <div className="flex flex-col">
                  <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Parcel Status</label>
-                 <select value={editF.status} onChange={e=>setEditF({...editF, status:e.target.value})} className={`p-2 border rounded text-sm ${inputBg}`}>
+                 <select value={editF.status} onChange={e=>setEditF({...editF, status:e.target.value})} className={`p-2 border rounded text-sm font-bold ${inputBg}`}>
                    {STATUSES.filter(s=>s!=='Deleted').map(s=><option key={s}>{s}</option>)}
                  </select>
                </div>
-
-               {/* 2. ONLY Superadmin can edit Price & Payment Mode */}
-               <div className="flex flex-col">
-                 <label className={`text-[10px] uppercase font-bold mb-1 ${isSuper ? 'text-indigo-500' : 'opacity-30'}`}>Price Override 🔒</label>
-                 <input type="number" disabled={!isSuper} value={editF.price} onChange={e=>setEditF({...editF, price:Number(e.target.value)})} placeholder="Superadmin Only" className={`p-2 border rounded font-bold text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit price" : ""} />
-               </div>
-               <div className="flex flex-col">
-                 <label className={`text-[10px] uppercase font-bold mb-1 ${isSuper ? 'text-indigo-500' : 'opacity-30'}`}>Payment Mode 🔒</label>
-                 <select disabled={!isSuper} value={editF.payment} onChange={e=>setEditF({...editF, payment:e.target.value})} className={`p-2 border rounded font-bold text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`}>
-                    {PAY_MODES.map(p=><option key={p} value={p}>{p}</option>)}
-                 </select>
+               
+               <div className="flex gap-2">
+                   <div className="flex flex-col flex-1">
+                     <label className={`text-[10px] uppercase font-bold mb-1 ${isSuper ? 'text-indigo-500' : 'opacity-30'}`}>Price 🔒</label>
+                     <input type="number" disabled={!isSuper} value={editF.price} onChange={e=>setEditF({...editF, price:Number(e.target.value)})} className={`p-2 border rounded font-bold text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit price" : ""} />
+                   </div>
+                   <div className="flex flex-col flex-1">
+                     <label className={`text-[10px] uppercase font-bold mb-1 ${isSuper ? 'text-indigo-500' : 'opacity-30'}`}>Mode 🔒</label>
+                     <select disabled={!isSuper} value={editF.payment} onChange={e=>setEditF({...editF, payment:e.target.value})} className={`p-2 border rounded font-bold text-sm ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit payment mode" : ""}>
+                        {PAY_MODES.map(p=><option key={p} value={p}>{p}</option>)}
+                     </select>
+                   </div>
                </div>
              </div>
 
              {/* 3. Reason Tracker (Mandatory) */}
              <div className="mt-2 bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
                <label className="text-[10px] uppercase font-bold text-amber-600 block mb-1">Reason for Edit (Mandatory) *</label>
-               <input value={editReason} onChange={e=>setEditReason(e.target.value)} placeholder="Type reason... (Ex: Corrected spelling, updated price)" className={`w-full p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-amber-500 ${inputBg}`} />
+               <input value={editReason} onChange={e=>setEditReason(e.target.value)} placeholder="Type reason... (Ex: Corrected GST, updated route)" className={`w-full p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-amber-500 ${inputBg}`} />
              </div>
 
              <div className="flex gap-2 mt-4">
