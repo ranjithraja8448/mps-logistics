@@ -204,7 +204,7 @@ function generateEOD_PDF(dateStr, branch, parcelsList, pettyList) {
   window.open(doc.output('bloburl'), '_blank');
 }
 
-function generateInvoicePDF(customer, customerPhone, fromD, toD, parcelsList, manualInvoiceNo, manualInvDate) {
+function generateInvoicePDF(customer, customerPhone, customerGst, fromD, toD, parcelsList, manualInvoiceNo, manualInvDate) {
   const doc = new jsPDF();
   doc.setFont("helvetica", "bold"); doc.setFontSize(18); 
   doc.text("MPS Parcel Service", 105, 15, { align: "center" });
@@ -220,9 +220,9 @@ function generateInvoicePDF(customer, customerPhone, fromD, toD, parcelsList, ma
   doc.setFontSize(10); doc.setFont("helvetica", "bold");
   
   let partyName = customer;
-  let gstText = "";
+  // 🔥 DYNAMIC GST INTEGRATION 🔥
+  let gstText = customerGst ? `GSTIN : ${customerGst}` : ""; 
   let addressText = "";
-  if (customer.toUpperCase().includes("SAI SILKS")) { partyName = "SAI SILKS KALAMANDIR LIMITED"; gstText = "GSTIN : 33AMCS1175P1ZU"; }
 
   doc.text(`Party Name : ${partyName}`, 14, 45);
   doc.setFont("helvetica", "normal");
@@ -457,7 +457,12 @@ class DB {
      if (this.isLive) { try { await fetch(`${this.base}/credit_auth?phone=eq.${phone}`, { method: "DELETE", headers: this.h }); } catch (e) {} }
      await local.set("mps_credit_auth", (await local.get("mps_credit_auth") || []).filter(c => c.phone !== phone));
   }
+  async updateCreditAuth(phone, data) {
+     if (this.isLive) { try { await fetch(`${this.base}/credit_auth?phone=eq.${phone}`, { method: "PATCH", headers: this.h, body: JSON.stringify(data) }); } catch (e) {} }
+     await local.set("mps_credit_auth", (await local.get("mps_credit_auth") || []).map(c => c.phone === phone ? { ...c, ...data } : c));
+  }
 }
+
 
 function EwayScannerModal({ onScan, onClose }) {
   useEffect(() => {
@@ -1655,7 +1660,11 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
   const [editF, setEditF] = useState(null); 
   const [editReason, setEditReason] = useState(""); 
   const [newUser, setNewUser] = useState(""); const [newPass, setNewPass] = useState(""); const [newRole, setNewRole] = useState("staff"); const [newBranch, setNewBranch] = useState(CITIES[0]);
-  const [newCPhone, setNewCPhone] = useState(""); const [newCName, setNewCName] = useState(""); const [paymentFilter, setPaymentFilter] = useState("All"); const [branchFilter, setBranchFilter] = useState(user.branch); const [searchQuery, setSearchQuery] = useState("");
+  
+  // 🔥 NEW: GST State Added Here 🔥
+  const [newCPhone, setNewCPhone] = useState(""); const [newCName, setNewCName] = useState(""); const [newCGst, setNewCGst] = useState(""); 
+  
+  const [paymentFilter, setPaymentFilter] = useState("All"); const [branchFilter, setBranchFilter] = useState(user.branch); const [searchQuery, setSearchQuery] = useState("");
   const d = new Date(); const todayStr = d.toISOString().split('T')[0]; d.setDate(1); const firstDayStr = d.toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState(firstDayStr); const [toDate, setToDate] = useState(todayStr); const [invCustomer, setInvCustomer] = useState("");
   
@@ -1668,11 +1677,12 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
 
   const handleAddUser = async () => { if(!newUser || !newPass) return showMsg("Fill administrative requirements", "error"); const assignedRole = isSuper ? newRole : "staff"; const assignedBranch = assignedRole === 'superadmin' ? 'All' : newBranch; const u = {id: genUserId(), username: newUser, password: newPass, role: assignedRole, branch: assignedBranch}; await db.insertUser(u); setUsers([u, ...users]); setNewUser(""); setNewPass(""); showMsg(`${assignedRole.toUpperCase()} Created!`); };
   
+  // 🔥 UPDATED: Saving GST while adding new customer 🔥
   const addCreditAuth = async () => { 
     if(newCPhone.length !== 10 || !newCName) return showMsg("Invalid Credit details", "error"); 
-    const newData = {phone: newCPhone, company: newCName.toUpperCase()}; 
+    const newData = {phone: newCPhone, company: newCName.toUpperCase(), gst: newCGst.toUpperCase()}; 
     const newList = [...creditAuthList, newData]; 
-    setCreditAuthList(newList); await db.insertCreditAuth(newData); setNewCPhone(""); setNewCName(""); showMsg("Credit Account Authorized!"); 
+    setCreditAuthList(newList); await db.insertCreditAuth(newData); setNewCPhone(""); setNewCName(""); setNewCGst(""); showMsg("Credit Account Authorized!"); 
   };
   
   const removeCredit = async (phone) => { 
@@ -1680,26 +1690,27 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     setCreditAuthList(newList); await db.deleteCreditAuth(phone); showMsg("Credit Auth Revoked", "error"); 
   };
 
+  // 🔥 NEW: Inline update for existing GST 🔥
+  const updateGST = async (phone, oldGst) => {
+    const newGst = window.prompt("Enter/Update GST Number for this account:", oldGst || "");
+    if(newGst !== null) {
+        const upperGst = newGst.toUpperCase().trim();
+        const updatedList = creditAuthList.map(c => c.phone === phone ? {...c, gst: upperGst} : c);
+        setCreditAuthList(updatedList);
+        await db.updateCreditAuth(phone, {gst: upperGst});
+        showMsg("GST Updated Successfully!");
+    }
+  };
+
   const deleteRecord = async (id) => { const reason = window.prompt(`Exact reason for deleting ${id}:`); if (!reason || reason.trim() === "") return showMsg("Deletion reason mandatory.", "error"); const target = parcels.find(p => p.id === id); const updatedHistory = [...target.history, {status: "Deleted", loc: user.branch, time: new Date().toLocaleString(), user: user.username, reason: reason}]; const updatedParcel = { ...target, status: 'Deleted', deletedBy: user.username, deleteReason: reason, history: updatedHistory }; await db.updateParcel(id, updatedParcel); setParcels(parcels.map(p => p.id === id ? updatedParcel : p)); showMsg("Consignment dropped.", "error"); };
   
   const saveOverrides = async () => { 
       if(!editReason.trim()) return showMsg("Reason for edit is mandatory!", "error");
-      
-      const updatedHistory = [...editF.history, {
-          status: "Edited", 
-          loc: user.branch, 
-          time: new Date().toLocaleString(), 
-          user: user.username,
-          reason: editReason
-      }];
-      
+      const updatedHistory = [...editF.history, { status: "Edited", loc: user.branch, time: new Date().toLocaleString(), user: user.username, reason: editReason }];
       const finalData = { ...editF, history: updatedHistory };
-      
       await db.updateParcel(editF.id, finalData); 
       setParcels(parcels.map(p => p.id === editF.id ? finalData : p)); 
-      setEditF(null); 
-      setEditReason("");
-      showMsg("Consignment updated and logged!"); 
+      setEditF(null); setEditReason(""); showMsg("Consignment updated and logged!"); 
   };
 
   const sortedTableData = [...parcels].reverse().filter(p => {
@@ -1727,10 +1738,13 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     });
 
     if(invoiceParcels.length === 0) return showMsg("No credit bills found for this period.", "error"); 
+    
+    // 🔥 PULLING GST DYNAMICALLY 🔥
     const sampleAuth = creditAuthList.find(c => c.company.toLowerCase() === invCustomer.toLowerCase());
     const displayPhone = sampleAuth ? sampleAuth.phone : "Multiple Acc Numbers";
+    const displayGst = sampleAuth ? (sampleAuth.gst || "") : "";
     
-    generateInvoicePDF(invCustomer, displayPhone, fromDate, toDate, invoiceParcels, manualInvNo.toUpperCase(), manualInvDate); 
+    generateInvoicePDF(invCustomer, displayPhone, displayGst, fromDate, toDate, invoiceParcels, manualInvNo.toUpperCase(), manualInvDate); 
     showMsg(`Invoice Generated for ${invCustomer}`); 
   };
 
@@ -1753,14 +1767,10 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     setParcels(updatedParcelsList); showMsg(`Successfully settled ${invoiceParcels.length} parcels for ${invCustomer}!`);
   };
 
-  const uniqueCompanies = [...new Set([
-    ...creditAuthList.map(c => c.company),
-    ...parcels.map(p => p.creditCustomer).filter(Boolean)
-  ])];
+  const uniqueCompanies = [...new Set([ ...creditAuthList.map(c => c.company), ...parcels.map(p => p.creditCustomer).filter(Boolean) ])];
 
   const unpaidCreditParcels = parcels.filter(p => p.status !== 'Deleted' && !p.creditSettled && (p.payment === 'Credit' || p.deliveryMode === 'Credit' || (p.notes && p.notes.includes("Mode: Credit"))));
-  const customerBalances = {};
-  let grandTotalCredit = 0;
+  const customerBalances = {}; let grandTotalCredit = 0;
   unpaidCreditParcels.forEach(p => {
      if(p.creditCustomer) {
          const amt = Number(p.price) || 0;
@@ -1778,8 +1788,37 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
       
       {tab === 'credit' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className={`${cardBg} p-4 md:p-6 rounded-2xl border space-y-4`}><h3 className="font-black text-sm md:text-base text-amber-500">Add Authorized Credit Account</h3><p className="text-[10px] md:text-xs opacity-60">You can add multiple phone numbers under the same Company Name.</p><input value={newCPhone} onChange={e=>setNewCPhone(e.target.value)} placeholder="Customer 10-digit Mobile" maxLength="10" className={`w-full p-2 md:p-3 rounded-xl border outline-none ${inputBg}`} /><input value={newCName} onChange={e=>setNewCName(e.target.value)} placeholder="Company / Individual Name" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} /><button onClick={addCreditAuth} className="w-full bg-amber-600 text-white font-bold py-2 md:py-3 rounded-xl text-sm md:text-base">Authorize Account</button></div>
-          <div className={`${cardBg} p-4 md:p-6 rounded-2xl border h-96 overflow-y-auto`}><h3 className="font-black text-sm md:text-base mb-4">Approved Credit Ledger</h3>{creditAuthList.length === 0 ? <p className="text-sm opacity-50">No credit accounts authorized.</p> : <div className="space-y-2">{creditAuthList.map((c, i) => ( <div key={i} className="flex justify-between items-center p-3 border border-slate-500/20 rounded-xl bg-black/5"><div><p className="font-bold text-sm text-amber-500">{c.company}</p><p className="text-[10px] opacity-80 font-mono">📱 {c.phone}</p></div><button onClick={()=>removeCredit(c.phone)} className="text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20">Revoke</button></div> ))}</div> }</div>
+          <div className={`${cardBg} p-4 md:p-6 rounded-2xl border space-y-4`}>
+             <h3 className="font-black text-sm md:text-base text-amber-500">Add Authorized Credit Account</h3>
+             <p className="text-[10px] md:text-xs opacity-60">Add multiple phone numbers under the same Company Name to group them.</p>
+             <input value={newCPhone} onChange={e=>setNewCPhone(e.target.value)} placeholder="Customer 10-digit Mobile" maxLength="10" className={`w-full p-2 md:p-3 rounded-xl border outline-none ${inputBg}`} />
+             <input value={newCName} onChange={e=>setNewCName(e.target.value)} placeholder="Company / Individual Name" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} />
+             {/* 🔥 NEW GST INPUT HERE 🔥 */}
+             <input value={newCGst} onChange={e=>setNewCGst(e.target.value)} placeholder="GST Number (Optional)" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} />
+             
+             <button onClick={addCreditAuth} className="w-full bg-amber-600 text-white font-bold py-2 md:py-3 rounded-xl text-sm md:text-base">Authorize Account</button>
+          </div>
+          
+          <div className={`${cardBg} p-4 md:p-6 rounded-2xl border h-96 overflow-y-auto`}>
+             <h3 className="font-black text-sm md:text-base mb-4">Approved Credit Ledger</h3>
+             {creditAuthList.length === 0 ? <p className="text-sm opacity-50">No credit accounts authorized.</p> : 
+             <div className="space-y-2">
+                {creditAuthList.map((c, i) => ( 
+                   <div key={i} className="flex justify-between items-center p-3 border border-slate-500/20 rounded-xl bg-black/5">
+                      <div>
+                         <p className="font-bold text-sm text-amber-500">{c.company}</p>
+                         <p className="text-[10px] opacity-80 font-mono mt-0.5">📱 {c.phone} {c.gst && <span className="text-emerald-500 font-bold ml-2">| 🏢 GST: {c.gst}</span>}</p>
+                      </div>
+                      <div className="flex gap-2">
+                         <button onClick={()=>updateGST(c.phone, c.gst)} className="text-amber-500 text-[10px] font-bold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 shadow-sm hover:bg-amber-500/20 transition-colors">✏️ Add/Edit GST</button>
+                         <button onClick={()=>removeCredit(c.phone)} className="text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shadow-sm hover:bg-red-500/20 transition-colors">Revoke</button>
+                      </div>
+                   </div> 
+                ))}
+             </div> 
+             }
+          </div>
+          
           <div className={`${cardBg} p-4 md:p-6 rounded-2xl border space-y-4 lg:col-span-2 border-indigo-500/30`}>
              <h3 className="font-black text-sm md:text-base text-indigo-500">📑 Generate Monthly Credit Invoice</h3>
              <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
@@ -1863,7 +1902,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
         </>
       )}
 
-      {/* 🔥 NEW FULL-POWER RBAC EDIT POPUP 🔥 */}
       {editF && ( 
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[200]">
            <div className={`${cardBg} p-6 rounded-2xl max-w-2xl w-full space-y-4 animate-bounce-in max-h-[90vh] overflow-y-auto custom-scrollbar`}>
@@ -1873,7 +1911,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
              </div>
              
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               {/* SENDER DETAILS */}
                <div className="space-y-3 bg-black/5 p-3 rounded-xl border border-slate-500/10">
                   <h4 className="text-[10px] uppercase font-black text-indigo-500">Sender Details</h4>
                   <input value={editF.sName} onChange={e=>setEditF({...editF, sName:e.target.value.toUpperCase()})} placeholder="Sender Name" className={`w-full p-2 border rounded text-sm uppercase ${inputBg}`} />
@@ -1881,7 +1918,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                   <input disabled={!isSuper} value={editF.sGst} onChange={e=>setEditF({...editF, sGst:e.target.value.toUpperCase()})} placeholder="Sender GST 🔒" className={`w-full p-2 border rounded text-sm uppercase ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
                </div>
 
-               {/* RECEIVER DETAILS */}
                <div className="space-y-3 bg-black/5 p-3 rounded-xl border border-slate-500/10">
                   <h4 className="text-[10px] uppercase font-black text-emerald-500">Receiver Details</h4>
                   <input value={editF.rName} onChange={e=>setEditF({...editF, rName:e.target.value.toUpperCase()})} placeholder="Receiver Name" className={`w-full p-2 border rounded text-sm uppercase ${inputBg}`} />
@@ -1889,7 +1925,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                   <input disabled={!isSuper} value={editF.rGst} onChange={e=>setEditF({...editF, rGst:e.target.value.toUpperCase()})} placeholder="Receiver GST 🔒" className={`w-full p-2 border rounded text-sm uppercase ${inputBg} ${!isSuper && 'opacity-50 cursor-not-allowed'}`} title={!isSuper ? "Only Superadmin can edit" : ""} />
                </div>
 
-               {/* LOGISTICS DETAILS (SUPERADMIN ONLY) */}
                <div className="space-y-3 bg-black/5 p-3 rounded-xl border border-slate-500/10 sm:col-span-2">
                   <h4 className="text-[10px] uppercase font-black text-amber-500">Logistics & Cargo</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -1906,7 +1941,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                   </div>
                </div>
 
-               {/* STATUS & FINANCIALS */}
                <div className="flex flex-col">
                  <label className="text-[10px] uppercase opacity-50 font-bold mb-1">Parcel Status</label>
                  <select value={editF.status} onChange={e=>setEditF({...editF, status:e.target.value})} className={`p-2 border rounded text-sm font-bold ${inputBg}`}>
@@ -1928,7 +1962,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                </div>
              </div>
 
-             {/* 3. Reason Tracker (Mandatory) */}
              <div className="mt-2 bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
                <label className="text-[10px] uppercase font-bold text-amber-600 block mb-1">Reason for Edit (Mandatory) *</label>
                <input value={editReason} onChange={e=>setEditReason(e.target.value)} placeholder="Type reason... (Ex: Corrected GST, updated route)" className={`w-full p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-amber-500 ${inputBg}`} />
