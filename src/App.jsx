@@ -453,13 +453,14 @@ class DB {
      if (this.isLive) { try { await fetch(`${this.base}/credit_auth`, { method: "POST", headers: this.h, body: JSON.stringify(data) }); } catch (e) {} }
      await local.set("mps_credit_auth", [data, ...(await local.get("mps_credit_auth") || [])]);
   }
-  async deleteCreditAuth(phone) {
-     if (this.isLive) { try { await fetch(`${this.base}/credit_auth?phone=eq.${phone}`, { method: "DELETE", headers: this.h }); } catch (e) {} }
-     await local.set("mps_credit_auth", (await local.get("mps_credit_auth") || []).filter(c => c.phone !== phone));
+  async updateCreditAuth(phone, company, data) {
+     if (this.isLive) { try { await fetch(`${this.base}/credit_auth?phone=eq.${encodeURIComponent(phone)}&company=eq.${encodeURIComponent(company)}`, { method: "PATCH", headers: this.h, body: JSON.stringify(data) }); } catch (e) {} }
+     await local.set("mps_credit_auth", (await local.get("mps_credit_auth") || []).map(c => (c.phone === phone && c.company === company) ? { ...c, ...data } : c));
   }
-  async updateCreditAuth(phone, data) {
-     if (this.isLive) { try { await fetch(`${this.base}/credit_auth?phone=eq.${phone}`, { method: "PATCH", headers: this.h, body: JSON.stringify(data) }); } catch (e) {} }
-     await local.set("mps_credit_auth", (await local.get("mps_credit_auth") || []).map(c => c.phone === phone ? { ...c, ...data } : c));
+  
+  async deleteCreditAuth(phone, company) {
+     if (this.isLive) { try { await fetch(`${this.base}/credit_auth?phone=eq.${encodeURIComponent(phone)}&company=eq.${encodeURIComponent(company)}`, { method: "DELETE", headers: this.h }); } catch (e) {} }
+     await local.set("mps_credit_auth", (await local.get("mps_credit_auth") || []).filter(c => !(c.phone === phone && c.company === company)));
   }
 }
 
@@ -1661,7 +1662,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
   const [editReason, setEditReason] = useState(""); 
   const [newUser, setNewUser] = useState(""); const [newPass, setNewPass] = useState(""); const [newRole, setNewRole] = useState("staff"); const [newBranch, setNewBranch] = useState(CITIES[0]);
   
-  // 🔥 NEW: GST State Added Here 🔥
   const [newCPhone, setNewCPhone] = useState(""); const [newCName, setNewCName] = useState(""); const [newCGst, setNewCGst] = useState(""); 
   
   const [paymentFilter, setPaymentFilter] = useState("All"); const [branchFilter, setBranchFilter] = useState(user.branch); const [searchQuery, setSearchQuery] = useState("");
@@ -1677,7 +1677,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
 
   const handleAddUser = async () => { if(!newUser || !newPass) return showMsg("Fill administrative requirements", "error"); const assignedRole = isSuper ? newRole : "staff"; const assignedBranch = assignedRole === 'superadmin' ? 'All' : newBranch; const u = {id: genUserId(), username: newUser, password: newPass, role: assignedRole, branch: assignedBranch}; await db.insertUser(u); setUsers([u, ...users]); setNewUser(""); setNewPass(""); showMsg(`${assignedRole.toUpperCase()} Created!`); };
   
-  // 🔥 UPDATED: Saving GST while adding new customer 🔥
   const addCreditAuth = async () => { 
     if(newCPhone.length !== 10 || !newCName) return showMsg("Invalid Credit details", "error"); 
     const newData = {phone: newCPhone, company: newCName.toUpperCase(), gst: newCGst.toUpperCase()}; 
@@ -1685,20 +1684,21 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     setCreditAuthList(newList); await db.insertCreditAuth(newData); setNewCPhone(""); setNewCName(""); setNewCGst(""); showMsg("Credit Account Authorized!"); 
   };
   
-  const removeCredit = async (phone) => { 
-    const newList = creditAuthList.filter(c => c.phone !== phone); 
-    setCreditAuthList(newList); await db.deleteCreditAuth(phone); showMsg("Credit Auth Revoked", "error"); 
+  // 🔥 UPDATED: Revoke exact company 🔥
+  const removeCredit = async (phone, company) => { 
+    const newList = creditAuthList.filter(c => !(c.phone === phone && c.company === company)); 
+    setCreditAuthList(newList); await db.deleteCreditAuth(phone, company); showMsg("Credit Auth Revoked", "error"); 
   };
 
-  // 🔥 NEW: Inline update for existing GST 🔥
-  const updateGST = async (phone, oldGst) => {
-    const newGst = window.prompt("Enter/Update GST Number for this account:", oldGst || "");
+  // 🔥 UPDATED: Inline update matching BOTH phone and company 🔥
+  const updateGST = async (phone, company, oldGst) => {
+    const newGst = window.prompt(`Enter/Update GST Number for ${company}:`, oldGst || "");
     if(newGst !== null) {
         const upperGst = newGst.toUpperCase().trim();
-        const updatedList = creditAuthList.map(c => c.phone === phone ? {...c, gst: upperGst} : c);
+        const updatedList = creditAuthList.map(c => (c.phone === phone && c.company === company) ? {...c, gst: upperGst} : c);
         setCreditAuthList(updatedList);
-        await db.updateCreditAuth(phone, {gst: upperGst});
-        showMsg("GST Updated Successfully!");
+        await db.updateCreditAuth(phone, company, {gst: upperGst});
+        showMsg("GST Updated Successfully for " + company + "!");
     }
   };
 
@@ -1739,7 +1739,7 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
 
     if(invoiceParcels.length === 0) return showMsg("No credit bills found for this period.", "error"); 
     
-    // 🔥 PULLING GST DYNAMICALLY 🔥
+    // Pulling matching company GST correctly
     const sampleAuth = creditAuthList.find(c => c.company.toLowerCase() === invCustomer.toLowerCase());
     const displayPhone = sampleAuth ? sampleAuth.phone : "Multiple Acc Numbers";
     const displayGst = sampleAuth ? (sampleAuth.gst || "") : "";
@@ -1793,7 +1793,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
              <p className="text-[10px] md:text-xs opacity-60">Add multiple phone numbers under the same Company Name to group them.</p>
              <input value={newCPhone} onChange={e=>setNewCPhone(e.target.value)} placeholder="Customer 10-digit Mobile" maxLength="10" className={`w-full p-2 md:p-3 rounded-xl border outline-none ${inputBg}`} />
              <input value={newCName} onChange={e=>setNewCName(e.target.value)} placeholder="Company / Individual Name" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} />
-             {/* 🔥 NEW GST INPUT HERE 🔥 */}
              <input value={newCGst} onChange={e=>setNewCGst(e.target.value)} placeholder="GST Number (Optional)" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} />
              
              <button onClick={addCreditAuth} className="w-full bg-amber-600 text-white font-bold py-2 md:py-3 rounded-xl text-sm md:text-base">Authorize Account</button>
@@ -1810,8 +1809,9 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                          <p className="text-[10px] opacity-80 font-mono mt-0.5">📱 {c.phone} {c.gst && <span className="text-emerald-500 font-bold ml-2">| 🏢 GST: {c.gst}</span>}</p>
                       </div>
                       <div className="flex gap-2">
-                         <button onClick={()=>updateGST(c.phone, c.gst)} className="text-amber-500 text-[10px] font-bold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 shadow-sm hover:bg-amber-500/20 transition-colors">✏️ Add/Edit GST</button>
-                         <button onClick={()=>removeCredit(c.phone)} className="text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shadow-sm hover:bg-red-500/20 transition-colors">Revoke</button>
+                         {/* 🔥 UPDATED onClick passed both phone and company 🔥 */}
+                         <button onClick={()=>updateGST(c.phone, c.company, c.gst)} className="text-amber-500 text-[10px] font-bold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 shadow-sm hover:bg-amber-500/20 transition-colors">✏️ Edit GST</button>
+                         <button onClick={()=>removeCredit(c.phone, c.company)} className="text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shadow-sm hover:bg-red-500/20 transition-colors">Revoke</button>
                       </div>
                    </div> 
                 ))}
