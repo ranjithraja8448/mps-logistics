@@ -204,7 +204,7 @@ function generateEOD_PDF(dateStr, branch, parcelsList, pettyList) {
   window.open(doc.output('bloburl'), '_blank');
 }
 
-function generateInvoicePDF(customer, customerPhone, customerGst, fromD, toD, parcelsList, manualInvoiceNo, manualInvDate) {
+function generateInvoicePDF(customer, customerPhone, customerGst, fromD, toD, parcelsList, manualInvoiceNo, manualInvDate, gstPercent = 0) {
   const doc = new jsPDF();
   doc.setFont("helvetica", "bold"); doc.setFontSize(18); 
   doc.text("MPS Parcel Service", 105, 15, { align: "center" });
@@ -220,7 +220,6 @@ function generateInvoicePDF(customer, customerPhone, customerGst, fromD, toD, pa
   doc.setFontSize(10); doc.setFont("helvetica", "bold");
   
   let partyName = customer;
-  // 🔥 DYNAMIC GST INTEGRATION 🔥
   let gstText = customerGst ? `GSTIN : ${customerGst}` : ""; 
   let addressText = "";
 
@@ -242,19 +241,46 @@ function generateInvoicePDF(customer, customerPhone, customerGst, fromD, toD, pa
   const tableRows = []; let totalAmount = 0; let totalPackages = 0;
   
   const sortedParcels = [...parcelsList].sort((a, b) => new Date(a.isoDate) - new Date(b.isoDate));
-  sortedParcels.forEach((p, index) => { const parcelData = [index + 1, p.id, p.date, p.sName, p.rName, `${p.count} ${p.type}`, p.price]; tableRows.push(parcelData); totalAmount += Number(p.price) || 0; totalPackages += Number(p.count) || 0; });
-  tableRows.push(["Total", "", "", "", "", totalPackages.toString(), totalAmount.toString()]);
+  sortedParcels.forEach((p, index) => { 
+      const parcelData = [index + 1, p.id, p.date, p.sName, p.rName, `${p.count} ${p.type}`, p.price]; 
+      tableRows.push(parcelData); 
+      totalAmount += Number(p.price) || 0; 
+      totalPackages += Number(p.count) || 0; 
+  });
+  
+  // 🔥 NEW GST CALCULATION LOGIC 🔥
+  const gstRate = Number(gstPercent) || 0;
+  const gstAmount = Math.round((totalAmount * gstRate) / 100);
+  const grandTotal = totalAmount + gstAmount;
+
+  if (gstRate > 0) {
+      tableRows.push(["Sub-Total", "", "", "", "", totalPackages.toString(), totalAmount.toString()]);
+      tableRows.push([`Add GST (${gstRate}%)`, "", "", "", "", "", gstAmount.toString()]);
+      tableRows.push(["Grand Total", "", "", "", "", "", grandTotal.toString()]);
+  } else {
+      tableRows.push(["Total", "", "", "", "", totalPackages.toString(), totalAmount.toString()]);
+  }
   
   autoTable(doc, {
       startY: yOffset + 5, head: [tableColumn], body: tableRows, theme: 'grid',
       headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9, halign: 'center' },
       bodyStyles: { fontSize: 8, textColor: [0, 0, 0] },
       columnStyles: { 0: { halign: 'center' }, 1: { fontStyle: 'bold' }, 5: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' } },
-      willDrawCell: function (data) { if (data.row.index === tableRows.length - 1) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = [245, 245, 245]; } }
+      willDrawCell: function (data) { 
+          const isTotalRow = data.row.index >= sortedParcels.length;
+          if (isTotalRow) { 
+              data.cell.styles.fontStyle = 'bold'; 
+              data.cell.styles.fillColor = [245, 245, 245]; 
+              if(data.row.index === tableRows.length - 1 && gstRate > 0) {
+                  data.cell.styles.fillColor = [230, 230, 230]; // Grand total background pop
+              }
+          } 
+      }
   });
   
   const finalY = doc.lastAutoTable.finalY || (yOffset + 5);
-  doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Net Payable Amount : RUPEES ${numberToWords(totalAmount)}`, 14, finalY + 8);
+  doc.setFontSize(9); doc.setFont("helvetica", "bold"); 
+  doc.text(`Net Payable Amount : RUPEES ${numberToWords(grandTotal)}`, 14, finalY + 8);
   doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.text(`Print DateTime : ${new Date().toLocaleString('en-IN')}`, 14, finalY + 16);
   doc.setFont("helvetica", "bold"); doc.text("Remark : Respected and Dear Valued Customer, Kindly ensure to make the payment earliest.", 14, finalY + 22);
   doc.text("Bank Details for Payment:", 14, finalY + 32); doc.setFont("helvetica", "normal"); doc.text("Bank Name : Tamilnad Mercantile Bank (TMB) ", 14, finalY + 38);
@@ -1670,6 +1696,7 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
   
   const [manualInvNo, setManualInvNo] = useState("");
   const [manualInvDate, setManualInvDate] = useState(todayStr);
+  const [invGstPercent, setInvGstPercent] = useState(""); // 🔥 NEW: Invoice GST Percentage
 
   const cardBg = isDark ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"; const inputBg = isDark ? "bg-slate-900 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-800"; const tblBg = isDark ? "bg-slate-800/40" : "bg-slate-50"; const isSuper = user.role === 'superadmin';
 
@@ -1684,13 +1711,11 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
     setCreditAuthList(newList); await db.insertCreditAuth(newData); setNewCPhone(""); setNewCName(""); setNewCGst(""); showMsg("Credit Account Authorized!"); 
   };
   
-  // 🔥 UPDATED: Revoke exact company 🔥
   const removeCredit = async (phone, company) => { 
     const newList = creditAuthList.filter(c => !(c.phone === phone && c.company === company)); 
     setCreditAuthList(newList); await db.deleteCreditAuth(phone, company); showMsg("Credit Auth Revoked", "error"); 
   };
 
-  // 🔥 UPDATED: Inline update matching BOTH phone and company 🔥
   const updateGST = async (phone, company, oldGst) => {
     const newGst = window.prompt(`Enter/Update GST Number for ${company}:`, oldGst || "");
     if(newGst !== null) {
@@ -1739,12 +1764,12 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
 
     if(invoiceParcels.length === 0) return showMsg("No credit bills found for this period.", "error"); 
     
-    // Pulling matching company GST correctly
     const sampleAuth = creditAuthList.find(c => c.company.toLowerCase() === invCustomer.toLowerCase());
     const displayPhone = sampleAuth ? sampleAuth.phone : "Multiple Acc Numbers";
     const displayGst = sampleAuth ? (sampleAuth.gst || "") : "";
     
-    generateInvoicePDF(invCustomer, displayPhone, displayGst, fromDate, toDate, invoiceParcels, manualInvNo.toUpperCase(), manualInvDate); 
+    // 🔥 UPDATED: Passing invGstPercent to PDF generator 🔥
+    generateInvoicePDF(invCustomer, displayPhone, displayGst, fromDate, toDate, invoiceParcels, manualInvNo.toUpperCase(), manualInvDate, invGstPercent); 
     showMsg(`Invoice Generated for ${invCustomer}`); 
   };
 
@@ -1794,7 +1819,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
              <input value={newCPhone} onChange={e=>setNewCPhone(e.target.value)} placeholder="Customer 10-digit Mobile" maxLength="10" className={`w-full p-2 md:p-3 rounded-xl border outline-none ${inputBg}`} />
              <input value={newCName} onChange={e=>setNewCName(e.target.value)} placeholder="Company / Individual Name" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} />
              <input value={newCGst} onChange={e=>setNewCGst(e.target.value)} placeholder="GST Number (Optional)" className={`w-full p-2 md:p-3 rounded-xl border outline-none uppercase ${inputBg}`} />
-             
              <button onClick={addCreditAuth} className="w-full bg-amber-600 text-white font-bold py-2 md:py-3 rounded-xl text-sm md:text-base">Authorize Account</button>
           </div>
           
@@ -1809,7 +1833,6 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                          <p className="text-[10px] opacity-80 font-mono mt-0.5">📱 {c.phone} {c.gst && <span className="text-emerald-500 font-bold ml-2">| 🏢 GST: {c.gst}</span>}</p>
                       </div>
                       <div className="flex gap-2">
-                         {/* 🔥 UPDATED onClick passed both phone and company 🔥 */}
                          <button onClick={()=>updateGST(c.phone, c.company, c.gst)} className="text-amber-500 text-[10px] font-bold bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 shadow-sm hover:bg-amber-500/20 transition-colors">✏️ Edit GST</button>
                          <button onClick={()=>removeCredit(c.phone, c.company)} className="text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shadow-sm hover:bg-red-500/20 transition-colors">Revoke</button>
                       </div>
@@ -1821,7 +1844,8 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
           
           <div className={`${cardBg} p-4 md:p-6 rounded-2xl border space-y-4 lg:col-span-2 border-indigo-500/30`}>
              <h3 className="font-black text-sm md:text-base text-indigo-500">📑 Generate Monthly Credit Invoice</h3>
-             <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+             {/* 🔥 UPDATED: Added GST Percent Selection Box 🔥 */}
+             <div className="grid grid-cols-1 sm:grid-cols-7 gap-4">
                 <select value={invCustomer} onChange={e=>setInvCustomer(e.target.value)} className={`sm:col-span-2 p-3 rounded-xl border font-bold text-sm ${inputBg}`}>
                   <option value="">Select Account...</option>
                   {uniqueCompanies.map((c,i) => <option key={i} value={c}>{c}</option>)}
@@ -1829,6 +1853,15 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                 <div className="flex flex-col">
                    <label className="text-[9px] uppercase font-bold opacity-60 ml-1 mb-1">Invoice No</label>
                    <input type="text" value={manualInvNo} onChange={e => setManualInvNo(e.target.value)} placeholder="Ex: 0001" className={`p-3 rounded-xl border text-sm font-bold uppercase focus:ring-2 focus:ring-indigo-500 ${inputBg}`} />
+                </div>
+                <div className="flex flex-col">
+                   <label className="text-[9px] uppercase font-bold opacity-60 ml-1 mb-1">GST %</label>
+                   <select value={invGstPercent} onChange={e => setInvGstPercent(e.target.value)} className={`p-3 rounded-xl border text-sm font-bold focus:ring-2 focus:ring-indigo-500 ${inputBg}`}>
+                     <option value="">0%</option>
+                     <option value="5">5%</option>
+                     <option value="12">12%</option>
+                     <option value="18">18%</option>
+                   </select>
                 </div>
                 <div className="flex flex-col">
                    <label className="text-[9px] uppercase font-bold opacity-60 ml-1 mb-1">Invoice Date</label>
@@ -1888,7 +1921,7 @@ function Admin({parcels, users, setUsers, setParcels, db, showMsg, isDark, user,
                     <td className="p-3 md:p-4 text-xs md:text-sm">₹{p.price} <b className="text-[10px] md:text-xs opacity-60">({p.payment})</b></td>
                     <td className="p-3 md:p-4"><span className="px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase" style={{backgroundColor: S_CLR[p.status]+'22', color: S_CLR[p.status]}}>{p.status}</span></td>
                     <td className="p-3 md:p-4 space-x-1 md:space-x-2 flex items-center">
-                      {(canEditDrop || isSuper) && p.status !== 'Deleted' && ( <><button onClick={()=>setEditF(p)} className="text-amber-500 text-[10px] md:text-xs font-bold border border-amber-500/20 px-2 py-1 rounded bg-amber-500/5">✏️ Edit</button><button onClick={()=>deleteRecord(p.id)} className="text-red-500 text-[10px] md:text-xs font-bold border border-red-500/20 px-2 py-1 rounded bg-red-500/5">🗑️ Drop</button></> )}
+                      {(canEditDrop || isSuper) && p.status !== 'Deleted' && ( <><button onClick={()=>setEditF(p)} className="text-amber-500 text-[10px] md:text-xs font-bold border border-amber-500/20 px-2 py-1 rounded bg-amber-500/5">✏️ Edit</button><button onClick={()=>deleteRecord(p.id)} className="text-red-500 text-[10px] md:text-xs font-bold border border-red-500/20 px-2 py-1 rounded bg-red-500/5">🗑️️ Drop</button></> )}
                       {!canEditDrop && !isSuper && p.status !== 'Deleted' && <span className="text-[10px] opacity-50 italic">🔒 Locked</span>}
                       {p.status !== 'Deleted' && <div className="ml-2"><PrintGroup p={p} /></div>}
                     </td>
