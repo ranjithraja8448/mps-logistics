@@ -7,9 +7,11 @@ export const BRANCH_CONFIG = {
   "Jalakandapuram": "03", 
   "Salem": "04", 
   "Coimbatore": "05", 
-  "Dharmapuri": "06", 
-  "Erode": "07", 
-  "Namakkal": "08" 
+  "Bhavani": "06", 
+  "Sathyamangalam": "07", 
+  "Bangalore": "08", 
+  "Chennai": "09", 
+  "Punjai Puliyampatti": "10" 
 };
 
 export const CITIES = Object.keys(BRANCH_CONFIG);
