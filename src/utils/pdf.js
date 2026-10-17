@@ -418,16 +418,65 @@ export function exportToCSV(title, parcelsList) {
 }
 
 export function openWhatsApp(phone, isSender, p) {
-  const cleanPhone = (phone || "").replace(/\D/g, "").slice(-10);
+  const targetPhone = phone || (isSender ? p?.sPhone : p?.rPhone) || "";
+  const cleanPhone = (targetPhone || "").replace(/\D/g, "").slice(-10);
   if (!cleanPhone || cleanPhone.length !== 10) {
     alert("Invalid 10-digit mobile number for WhatsApp dispatch!");
     return;
   }
-  const text = `📦 *MPS PARCEL SERVICE*\n\nவணக்கம் / Hello *${
-    isSender ? p.sName : p.rName
-  }*,\nYour parcel is booked successfully!\n\n📑 *LR Number:* ${p.id}\n📍 *Route:* ${p.from} ➔ ${p.to}\n📦 *Cargo:* ${
-    p.count
-  } ${p.type}\n💰 *Amount:* ₹${p.price} (${p.payment})\n\nThank you for choosing MPS Parcel Service!`;
+
+  // Cargo items breakdown
+  let cargoSection = `📦 *Cargo Manifest:* ${p?.count || "1"} ${p?.type || "Box"}`;
+  if (p?.cargoList && p.cargoList.length > 0) {
+    const listText = p.cargoList
+      .map(
+        c =>
+          `   • ${c.count} × ${c.type}${c.size && c.size !== "Standard" ? ` (${c.size})` : ""}${
+            c.weight ? ` - ${c.weight} kg` : ""
+          }`
+      )
+      .join("\n");
+    cargoSection = `📦 *Cargo Manifest (${p.count || p.cargoList.length} Items Total):*\n${listText}`;
+  }
+
+  // Delivery status / Handover info
+  let deliverySection = "";
+  if (p?.status === "Delivered") {
+    deliverySection =
+      `\n✅ *Delivery Status:* Delivered\n` +
+      `🤝 *Delivered By:* ${p.deliveredBy || "Staff"} (${p.deliveredBranch || p.to || ""})\n` +
+      `💳 *Settlement Mode:* ${p.deliveryMode || p.payment || "Cash"}`;
+  } else {
+    deliverySection = `\n📊 *Status:* ${p?.status || "Booked"}`;
+  }
+
+  const text =
+    `🚚 *MPS LOGISTICS & PARCEL SERVICE*\n` +
+    `_Consignment Booking & Tracking Manifest_\n` +
+    `══════════════════════════\n` +
+    `📑 *LR Manifest No:* *${p?.id || "N/A"}*\n` +
+    `📅 *Booking Date:* ${p?.date || new Date().toLocaleDateString("en-IN")}\n` +
+    `🏢 *Booking Station:* ${p?.bookedBranch || p?.from || "-"} (Staff: ${p?.bookedBy || "Counter"})\n` +
+    `══════════════════════════\n` +
+    `📤 *Consignor (Sender):*\n` +
+    `   *${p?.sName || "Sender"}*\n` +
+    `   📞 ${p?.sPhone || "-"}${p?.sGst ? `\n   GSTIN: ${p.sGst}` : ""}\n\n` +
+    `📥 *Consignee (Receiver):*\n` +
+    `   *${p?.rName || "Receiver"}*\n` +
+    `   📞 ${p?.rPhone || "-"}${p?.rGst ? `\n   GSTIN: ${p.rGst}` : ""}\n` +
+    `══════════════════════════\n` +
+    `📍 *Route:* *${p?.from || "-"}* ➔ *${p?.to || "-"}*\n` +
+    `${cargoSection}\n` +
+    (p?.actualWeight ? `⚖️ *Total Weight:* ${p.actualWeight} kg\n` : "") +
+    (p?.eway ? `⚡ *E-Way Bill:* ${p.eway}\n` : "") +
+    `══════════════════════════\n` +
+    `💰 *Freight Total:* *₹${p?.price || 0}*\n` +
+    `💳 *Payment Type:* *${p?.payment || "Paid"}*${p?.creditCustomer ? ` (A/C: ${p.creditCustomer})` : ""}` +
+    `${deliverySection}\n` +
+    `══════════════════════════\n` +
+    `🙏 *Thank you for choosing MPS Logistics!*\n` +
+    `Reliable Daily Cargo Services Across Tamil Nadu.`;
+
   window.open(`https://api.whatsapp.com/send?phone=91${cleanPhone}&text=${encodeURIComponent(text)}`, "_blank");
 }
 

@@ -215,9 +215,12 @@ export default function Admin({
         const matchTerm = searchQuery.toLowerCase();
         return (
           p.id.toLowerCase().includes(matchTerm) ||
-          p.sPhone.includes(matchTerm) ||
-          p.rPhone.includes(matchTerm) ||
-          (p.sName && p.sName.toLowerCase().includes(matchTerm))
+          (p.sPhone && p.sPhone.includes(matchTerm)) ||
+          (p.rPhone && p.rPhone.includes(matchTerm)) ||
+          (p.sName && p.sName.toLowerCase().includes(matchTerm)) ||
+          (p.rName && p.rName.toLowerCase().includes(matchTerm)) ||
+          (p.bookedBy && p.bookedBy.toLowerCase().includes(matchTerm)) ||
+          (p.deliveredBy && p.deliveredBy.toLowerCase().includes(matchTerm))
         );
       }
       return true;
@@ -344,10 +347,10 @@ export default function Admin({
   return (
     <div className="space-y-5 md:space-y-6 animate-fade-in">
       {/* Tab Navigation Pill Bar */}
-      <div className="flex flex-wrap gap-2.5 p-1.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-slate-500/10 w-max">
+      <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-slate-500/10 w-full sm:w-max">
         <button
           onClick={() => setTab("parcels")}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs transition-all whitespace-nowrap ${
             tab === "parcels"
               ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
               : "opacity-60 hover:opacity-100 hover:bg-white/5"
@@ -357,7 +360,7 @@ export default function Admin({
         </button>
         <button
           onClick={() => setTab("staff")}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs transition-all whitespace-nowrap ${
             tab === "staff"
               ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
               : "opacity-60 hover:opacity-100 hover:bg-white/5"
@@ -367,7 +370,7 @@ export default function Admin({
         </button>
         <button
           onClick={() => setTab("credit")}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${
+          className={`flex-1 sm:flex-initial text-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs transition-all whitespace-nowrap ${
             tab === "credit"
               ? "bg-amber-600 text-white shadow-lg shadow-amber-600/30"
               : "opacity-60 hover:opacity-100 hover:bg-white/5"

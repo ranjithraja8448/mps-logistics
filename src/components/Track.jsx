@@ -1,19 +1,32 @@
 import { useState, useMemo } from "react";
 import { CITIES, STATUSES, S_CLR } from "../constants";
-import { exportToCSV, generateListPDF } from "../utils/pdf";
+import { exportToCSV, generateListPDF, openWhatsApp } from "../utils/pdf";
 import PrintGroup from "./common/PrintGroup";
 
-export default function Track({ parcels, isDark, user, setGlobalView, initialStatus }) {
+export default function Track({ parcels, users = [], isDark, user, setGlobalView, initialStatus }) {
   const [fLR, setFLR] = useState("");
   const [fFrom, setFFrom] = useState("All");
   const [fTo, setFTo] = useState("All");
   const [fStatus, setFStatus] = useState(initialStatus || "All");
+  const [fUser, setFUser] = useState("All");
+  const [fUserAction, setFUserAction] = useState("all");
   const [prevStatus, setPrevStatus] = useState(initialStatus);
   const [fFromDate, setFFromDate] = useState("");
   const [fToDate, setFToDate] = useState("");
   const [sortOrder, setSortOrder] = useState("date_desc");
   const [pageIndex, setPageIndex] = useState(1);
   const PAGE_SIZE = 50;
+
+  // Extract all unique staff usernames from users list and existing parcels
+  const allUsers = useMemo(() => {
+    const set = new Set();
+    (users || []).forEach(u => u.username && set.add(u.username));
+    parcels.forEach(p => {
+      if (p.bookedBy) set.add(p.bookedBy);
+      if (p.deliveredBy) set.add(p.deliveredBy);
+    });
+    return Array.from(set).sort();
+  }, [users, parcels]);
 
   // Sync state if initialStatus prop changes from external navigation
   if (initialStatus !== prevStatus) {
@@ -30,22 +43,39 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
   const tblBg = isDark ? "bg-slate-950/70 text-slate-300" : "bg-slate-100/80 text-slate-700";
 
   const results = useMemo(() => {
-    const sTerm = fLR.toLowerCase();
+    const sTerm = fLR.trim().toLowerCase();
     const filtered = parcels.filter(p => {
       if (fStatus === "All" && p.status === "Deleted") return false;
       if (fStatus !== "All" && p.status !== fStatus) return false;
 
+      // Search match across LR, phone numbers, customer names, routes, and staff handling
       if (
         fLR &&
         !p.id.toLowerCase().includes(sTerm) &&
-        !p.sPhone.includes(sTerm) &&
-        !p.rPhone.includes(sTerm) &&
+        !(p.sPhone && p.sPhone.includes(sTerm)) &&
+        !(p.rPhone && p.rPhone.includes(sTerm)) &&
         !(p.sName && p.sName.toLowerCase().includes(sTerm)) &&
-        !(p.rName && p.rName.toLowerCase().includes(sTerm))
+        !(p.rName && p.rName.toLowerCase().includes(sTerm)) &&
+        !(p.bookedBy && p.bookedBy.toLowerCase().includes(sTerm)) &&
+        !(p.deliveredBy && p.deliveredBy.toLowerCase().includes(sTerm)) &&
+        !(p.from && p.from.toLowerCase().includes(sTerm)) &&
+        !(p.to && p.to.toLowerCase().includes(sTerm))
       )
         return false;
+
       if (fFrom !== "All" && p.from !== fFrom) return false;
       if (fTo !== "All" && p.to !== fTo) return false;
+
+      // User filter: filter by staff who booked or delivered
+      if (fUser !== "All") {
+        if (fUserAction === "booked") {
+          if (p.bookedBy !== fUser) return false;
+        } else if (fUserAction === "delivered") {
+          if (p.deliveredBy !== fUser) return false;
+        } else {
+          if (p.bookedBy !== fUser && p.deliveredBy !== fUser) return false;
+        }
+      }
 
       if (user.role === "staff" && p.from !== user.branch && p.to !== user.branch) return false;
 
@@ -62,7 +92,7 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
       if (sortOrder === "date_asc") return new Date(a.isoDate) - new Date(b.isoDate);
       return 0;
     });
-  }, [parcels, fLR, fStatus, fFrom, fTo, user, fFromDate, fToDate, sortOrder]);
+  }, [parcels, fLR, fStatus, fFrom, fTo, fUser, fUserAction, user, fFromDate, fToDate, sortOrder]);
 
   const totalPages = Math.ceil(results.length / PAGE_SIZE) || 1;
   const currentPage = Math.min(Math.max(1, pageIndex), totalPages);
@@ -95,27 +125,27 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
             <span className="p-1.5 rounded-xl bg-indigo-500/15 text-indigo-400 text-sm">🔍</span>
             <h3 className="font-black text-sm uppercase tracking-wider text-indigo-500">Track & Trace Filter Matrix</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => exportToCSV("Track_List", results)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all shadow-md shadow-indigo-600/20"
+              className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all shadow-md shadow-indigo-600/20 whitespace-nowrap active:scale-95"
             >
               📥 CSV Export
             </button>
             <button
               onClick={() => generateListPDF("Tracked Parcels List", user.branch, results)}
-              className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all shadow-md"
+              className="flex-1 sm:flex-initial bg-slate-800 hover:bg-slate-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all shadow-md whitespace-nowrap active:scale-95"
             >
               📄 Print PDF
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
           <input
             value={fLR}
             onChange={e => setFLR(e.target.value)}
-            placeholder="🔍 LR / Phone / Sender..."
+            placeholder="🔍 LR / Phone / Sender / Staff..."
             className={`p-2.5 rounded-xl border text-xs font-semibold outline-none focus:ring-2 focus:ring-indigo-500/30 ${inputBg}`}
           />
           <select
@@ -154,6 +184,37 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
               </option>
             ))}
           </select>
+
+          {/* User / Staff filter */}
+          <select
+            value={fUser}
+            onChange={e => setFUser(e.target.value)}
+            className={`p-2.5 rounded-xl border text-xs font-bold outline-none ${inputBg} ${
+              fUser !== "All" ? "ring-2 ring-indigo-500/30 border-indigo-500 text-indigo-500 dark:text-indigo-400" : ""
+            }`}
+          >
+            <option value="All">👤 Staff: All Users</option>
+            {allUsers.map(u => (
+              <option key={u} value={u}>
+                👤 {u}
+              </option>
+            ))}
+          </select>
+
+          {/* Activity type filter (Booked by vs Delivered by) */}
+          <select
+            value={fUserAction}
+            onChange={e => setFUserAction(e.target.value)}
+            disabled={fUser === "All"}
+            className={`p-2.5 rounded-xl border text-xs font-bold outline-none ${inputBg} ${
+              fUser === "All" ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            <option value="all">Activity: Booked or Delivered</option>
+            <option value="booked">📦 Booked by {fUser !== "All" ? fUser : "Staff"}</option>
+            <option value="delivered">🤝 Delivered by {fUser !== "All" ? fUser : "Staff"}</option>
+          </select>
+
           <input
             type="date"
             title="From Date"
@@ -178,13 +239,34 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
             <option value="lr_asc">Sort: LR (A ➔ Z)</option>
             <option value="lr_desc">Sort: LR (Z ➔ A)</option>
           </select>
+
+          {/* Reset button if any filter is active */}
+          {(fLR || fFrom !== "All" || fTo !== "All" || fStatus !== "All" || fUser !== "All" || fFromDate || fToDate) && (
+            <button
+              onClick={() => {
+                setFLR("");
+                setFFrom("All");
+                setFTo("All");
+                setFStatus("All");
+                setFUser("All");
+                setFUserAction("all");
+                setFFromDate("");
+                setFToDate("");
+                setSortOrder("date_desc");
+              }}
+              className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95"
+            >
+              <span>✕</span>
+              <span>Reset Filters</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Results Enterprise Data Grid */}
       <div className={`${cardBg} rounded-3xl border shadow-xl overflow-hidden`}>
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="min-w-[900px] w-full text-left whitespace-nowrap text-sm">
+          <table className="min-w-[950px] w-full text-left whitespace-nowrap text-sm">
             <thead
               className={`${tblBg} text-[10px] font-black uppercase tracking-wider border-b border-slate-500/10 sticky top-0 backdrop-blur-md z-10`}
             >
@@ -195,13 +277,14 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
                 <th className="p-4">Cargo Manifest</th>
                 <th className="p-4">Freight & Mode</th>
                 <th className="p-4">Status</th>
-                <th className="p-4 pr-6 text-center">Receipt</th>
+                <th className="p-4">Staff Handling</th>
+                <th className="p-4 pr-6 text-center">Receipt & Share</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-500/10">
               {results.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-12 text-center opacity-50 font-bold text-sm">
+                  <td colSpan="8" className="p-12 text-center opacity-50 font-bold text-sm">
                     🔍 No parcels match your query criteria.
                   </td>
                 </tr>
@@ -256,8 +339,44 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
                         {p.status}
                       </span>
                     </td>
+                    <td className="p-4 text-xs font-semibold">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5" title="Staff who booked this consignment">
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 border border-indigo-500/25">
+                            Booked
+                          </span>
+                          <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {p.bookedBy || "System"}
+                          </span>
+                        </div>
+                        {p.status === "Delivered" ? (
+                          <div className="flex items-center gap-1.5" title="Staff who delivered this consignment">
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/25">
+                              Delivered
+                            </span>
+                            <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                              {p.deliveredBy || "Staff"}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 opacity-40 text-[10px] italic">
+                            <span>⏳</span>
+                            <span>Delivery pending</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-4 pr-6 text-center" onClick={e => e.stopPropagation()}>
-                      <PrintGroup p={p} />
+                      <div className="flex items-center justify-center gap-2">
+                        <PrintGroup p={p} />
+                        <button
+                          onClick={() => openWhatsApp(p.sPhone, true, p)}
+                          title="Send full LR details via WhatsApp"
+                          className="p-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] transition-all text-sm shrink-0 border border-[#25D366]/30 active:scale-95 flex items-center justify-center"
+                        >
+                          💬
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -278,7 +397,7 @@ export default function Track({ parcels, isDark, user, setGlobalView, initialSta
                   <td className="p-4 text-amber-500 font-mono text-base">
                     {totalQty} <span className="text-xs">Items</span>
                   </td>
-                  <td colSpan="3" className="p-4 pr-6">
+                  <td colSpan="4" className="p-4 pr-6">
                     <div className="flex flex-col gap-1 text-xs">
                       <span className="text-base font-black font-mono text-indigo-400">
                         Total: ₹{totalAmt.toLocaleString()}

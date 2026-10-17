@@ -164,12 +164,12 @@ export default function Accounts({ parcels, setParcels, db, showMsg, isDark, use
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5 w-full md:w-auto items-center">
+        <div className="flex flex-wrap gap-2 sm:gap-2.5 w-full md:w-auto items-center">
           {user.role === "superadmin" ? (
             <select
               value={eodBranch}
               onChange={e => setEodBranch(e.target.value)}
-              className={`p-2.5 px-3.5 rounded-xl border font-bold text-xs outline-none ${inputBg}`}
+              className={`flex-1 sm:flex-initial p-2.5 px-3.5 rounded-xl border font-bold text-xs outline-none ${inputBg}`}
             >
               {CITIES.map(c => (
                 <option key={c} value={c}>
@@ -186,18 +186,18 @@ export default function Accounts({ parcels, setParcels, db, showMsg, isDark, use
             type="date"
             value={eodDate}
             onChange={e => setEodDate(e.target.value)}
-            className={`p-2.5 px-3 rounded-xl border text-xs font-bold outline-none ${inputBg}`}
+            className={`flex-1 sm:flex-initial p-2.5 px-3 rounded-xl border text-xs font-bold outline-none ${inputBg}`}
           />
           <button
             onClick={triggerEOD}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all text-xs flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all text-xs flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95"
           >
             <span>📄</span> Day-Book PDF
           </button>
           <button
             onClick={triggerEOD_WhatsApp}
             title="1-Click WhatsApp EOD Summary to Owner/Manager"
-            className="bg-[#25D366] hover:bg-[#1ebd59] text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-[#25D366]/20 transition-all text-xs flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial bg-[#25D366] hover:bg-[#1ebd59] text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-[#25D366]/20 transition-all text-xs flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95"
           >
             <span>💬</span> Share WhatsApp
           </button>
@@ -223,28 +223,28 @@ export default function Accounts({ parcels, setParcels, db, showMsg, isDark, use
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5 w-full md:w-auto items-center">
-          <div className="flex items-center gap-1.5 text-xs font-semibold">
-            <span className="opacity-60 text-[10px] uppercase font-black">From:</span>
+        <div className="flex flex-wrap gap-2 sm:gap-2.5 w-full md:w-auto items-center">
+          <div className="flex items-center gap-1.5 text-xs font-semibold flex-1 sm:flex-initial">
+            <span className="opacity-60 text-[10px] uppercase font-black shrink-0">From:</span>
             <input
               type="date"
               value={gstrFrom}
               onChange={e => setGstrFrom(e.target.value)}
-              className={`p-2.5 px-3 rounded-xl border text-xs font-bold outline-none ${inputBg}`}
+              className={`w-full sm:w-auto p-2.5 px-3 rounded-xl border text-xs font-bold outline-none ${inputBg}`}
             />
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold">
-            <span className="opacity-60 text-[10px] uppercase font-black">To:</span>
+          <div className="flex items-center gap-1.5 text-xs font-semibold flex-1 sm:flex-initial">
+            <span className="opacity-60 text-[10px] uppercase font-black shrink-0">To:</span>
             <input
               type="date"
               value={gstrTo}
               onChange={e => setGstrTo(e.target.value)}
-              className={`p-2.5 px-3 rounded-xl border text-xs font-bold outline-none ${inputBg}`}
+              className={`w-full sm:w-auto p-2.5 px-3 rounded-xl border text-xs font-bold outline-none ${inputBg}`}
             />
           </div>
           <button
             onClick={handleExportGSTR1}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all text-xs flex items-center gap-1.5"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition-all text-xs flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-95"
           >
             <span>📥</span> Download GSTR-1 CSV
           </button>

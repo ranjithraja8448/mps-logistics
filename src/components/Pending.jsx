@@ -44,8 +44,11 @@ export default function Pending({ parcels, setParcels, db, showMsg, isDark, user
       if (
         fLR &&
         !p.id.toLowerCase().includes(sTerm) &&
-        !p.sPhone.includes(sTerm) &&
-        !(p.sName && p.sName.toLowerCase().includes(sTerm))
+        !(p.sPhone && p.sPhone.includes(sTerm)) &&
+        !(p.rPhone && p.rPhone.includes(sTerm)) &&
+        !(p.sName && p.sName.toLowerCase().includes(sTerm)) &&
+        !(p.rName && p.rName.toLowerCase().includes(sTerm)) &&
+        !(p.bookedBy && p.bookedBy.toLowerCase().includes(sTerm))
       )
         return false;
       if (fFrom !== "All" && p.from !== fFrom) return false;
@@ -186,13 +189,13 @@ export default function Pending({ parcels, setParcels, db, showMsg, isDark, user
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => {
                 setTargetBranch(fTo !== "All" ? fTo : CITIES[0]);
                 setShowTripModal(true);
               }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-indigo-700 hover:bg-slate-100 font-black text-xs transition-all shadow-md active:scale-95"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white text-indigo-700 hover:bg-slate-100 font-black text-xs transition-all shadow-md active:scale-95 whitespace-nowrap"
             >
               <span>🚚</span>
               <span>Create Trip Sheet & Dispatch</span>
@@ -200,14 +203,14 @@ export default function Pending({ parcels, setParcels, db, showMsg, isDark, user
             <button
               onClick={() => markBatchInTransit()}
               disabled={isDispatching}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-950/60 hover:bg-indigo-950 text-white font-bold text-xs transition-all border border-white/20"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-950/60 hover:bg-indigo-950 text-white font-bold text-xs transition-all border border-white/20 whitespace-nowrap"
             >
               <span>⚡</span>
               <span>{isDispatching ? "Dispatching..." : "Quick In-Transit"}</span>
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs transition-all"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs transition-all shrink-0"
               title="Deselect all"
             >
               ✕

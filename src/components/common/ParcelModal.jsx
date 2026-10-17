@@ -3,6 +3,7 @@ import PrintGroup from "./PrintGroup";
 import CreditSearchDropdown from "./CreditSearchDropdown";
 import { S_CLR } from "../../constants";
 import { playSuccessChime, playErrorBuzz } from "../../utils/audio";
+import { openWhatsApp } from "../../utils/pdf";
 
 export default function ParcelModal({ item, creditAuthList, onClose, db, parcels, setParcels, user, showMsg, isDark }) {
   const [payMethod, setPayMethod] = useState("");
@@ -98,18 +99,40 @@ export default function ParcelModal({ item, creditAuthList, onClose, db, parcels
             </p>
           </div>
 
-          <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-slate-500/10">
-            <p className="text-[10px] uppercase font-bold opacity-60 text-blue-400">Consignor (Sender)</p>
-            <p className="font-bold text-sm mt-0.5 truncate">{item.sName}</p>
-            <p className="text-xs font-mono opacity-70 mt-0.5">{item.sPhone}</p>
-            {item.sGst && <p className="text-[10px] opacity-60 font-mono mt-0.5">GST: {item.sGst}</p>}
+          <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-slate-500/10 flex flex-col justify-between">
+            <div>
+              <p className="text-[10px] uppercase font-bold opacity-60 text-blue-400">Consignor (Sender)</p>
+              <p className="font-bold text-sm mt-0.5 truncate">{item.sName}</p>
+              <p className="text-xs font-mono opacity-70 mt-0.5">{item.sPhone}</p>
+              {item.sGst && <p className="text-[10px] opacity-60 font-mono mt-0.5">GST: {item.sGst}</p>}
+            </div>
+            {item.sPhone && (
+              <button
+                onClick={() => openWhatsApp(item.sPhone, true, item)}
+                title="Send full LR details via WhatsApp to Sender"
+                className="mt-2.5 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] text-xs font-bold transition-all border border-[#25D366]/30 active:scale-95"
+              >
+                <span>💬</span> WhatsApp Sender
+              </button>
+            )}
           </div>
 
-          <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-slate-500/10">
-            <p className="text-[10px] uppercase font-bold opacity-60 text-purple-400">Consignee (Receiver)</p>
-            <p className="font-bold text-sm mt-0.5 truncate">{item.rName}</p>
-            <p className="text-xs font-mono opacity-70 mt-0.5">{item.rPhone}</p>
-            {item.rGst && <p className="text-[10px] opacity-60 font-mono mt-0.5">GST: {item.rGst}</p>}
+          <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-slate-500/10 flex flex-col justify-between">
+            <div>
+              <p className="text-[10px] uppercase font-bold opacity-60 text-purple-400">Consignee (Receiver)</p>
+              <p className="font-bold text-sm mt-0.5 truncate">{item.rName}</p>
+              <p className="text-xs font-mono opacity-70 mt-0.5">{item.rPhone}</p>
+              {item.rGst && <p className="text-[10px] opacity-60 font-mono mt-0.5">GST: {item.rGst}</p>}
+            </div>
+            {item.rPhone && (
+              <button
+                onClick={() => openWhatsApp(item.rPhone, false, item)}
+                title="Send full LR details via WhatsApp to Receiver"
+                className="mt-2.5 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#128C7E]/15 hover:bg-[#128C7E]/25 text-[#128C7E] dark:text-[#25D366] text-xs font-bold transition-all border border-[#128C7E]/30 active:scale-95"
+              >
+                <span>💬</span> WhatsApp Receiver
+              </button>
+            )}
           </div>
 
           {/* Cargo breakdown */}

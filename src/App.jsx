@@ -24,6 +24,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [creditAuthList, setCreditAuthList] = useState([]);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shortcutMode, setShortcutMode] = useState("");
   const [globalViewItem, setGlobalViewItem] = useState(null);
   const [trackFilter, setTrackFilter] = useState("All");
@@ -200,6 +201,7 @@ export default function App() {
       if (e.key === "Escape") {
         setShowShortcutsModal(false);
         setGlobalViewItem(null);
+        setMobileMenuOpen(false);
         return;
       }
 
@@ -292,35 +294,54 @@ export default function App() {
         )}
       </div>
       {/* ══════════════════════════════════════════
+          MOBILE SIDEBAR BACKDROP OVERLAY
+      ══════════════════════════════════════════ */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ══════════════════════════════════════════
           ANTI-GRAVITY GLASS SIDEBAR
       ══════════════════════════════════════════ */}
       <aside
-        className={`${
-          sidebarExpanded ? "w-64" : "w-20"
-        } bg-slate-950/85 backdrop-blur-2xl text-slate-300 flex flex-col shadow-2xl border-r border-white/10 relative z-50 transition-all duration-300 shrink-0`}
+        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-30 flex flex-col bg-slate-950/95 md:bg-slate-950/85 backdrop-blur-2xl text-slate-300 shadow-2xl border-r border-white/10 transition-transform md:transition-all duration-300 ease-in-out shrink-0 ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } w-72 max-w-[85vw] md:w-auto ${sidebarExpanded ? "md:w-64" : "md:w-20"}`}
       >
         {/* Brand / Logo */}
-        <div className="h-20 flex items-center justify-between px-4 border-b border-white/10 bg-white/[0.02]">
-          <div className="flex items-center overflow-hidden">
+        <div className="h-16 md:h-20 flex items-center justify-between px-4 border-b border-white/10 bg-white/[0.02]">
+          <div className="flex items-center gap-2 overflow-hidden">
             <MpsLogo />
-            {sidebarExpanded && (
-              <div className="animate-fade-in truncate">
-                <h1 className="text-base font-black tracking-wider text-white">MPS LOGISTICS</h1>
-                <p className="text-[9px] uppercase tracking-widest text-indigo-400 font-extrabold">Enterprise ERP</p>
-              </div>
-            )}
+            <div className={`truncate ${sidebarExpanded ? "block" : "block md:hidden"} animate-fade-in`}>
+              <h1 className="text-base font-black tracking-wider text-white">MPS LOGISTICS</h1>
+              <p className="text-[9px] uppercase tracking-widest text-indigo-400 font-extrabold">Enterprise ERP</p>
+            </div>
           </div>
+          {/* Desktop collapse toggle */}
           <button
             onClick={() => setSidebarExpanded(!sidebarExpanded)}
             title={sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-            className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs border border-white/5"
+            className="hidden md:flex p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-xs border border-white/5"
           >
             {sidebarExpanded ? "◀" : "▶"}
+          </button>
+          {/* Mobile close button */}
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            title="Close navigation menu"
+            className="md:hidden p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-all text-sm border border-white/10 active:scale-95"
+            aria-label="Close navigation"
+          >
+            ✕
           </button>
         </div>
 
         {/* Navigation items */}
-        <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-3 py-4 md:py-6 space-y-1.5 md:space-y-2 overflow-y-auto custom-scrollbar">
           {navItems.map(item => {
             if (!(item.role === "staff" || user.role === "admin" || user.role === "superadmin")) return null;
             const isActive = page === item.id;
@@ -328,7 +349,10 @@ export default function App() {
               <button
                 key={item.id}
                 title={`${item.label} ${item.hotkey ? `[${item.hotkey}]` : ""}`}
-                onClick={() => setPage(item.id)}
+                onClick={() => {
+                  setPage(item.id);
+                  setMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl font-bold transition-all duration-200 group relative ${
                   isActive
                     ? "bg-gradient-to-r from-indigo-600/30 to-violet-600/20 text-white border border-indigo-500/40 shadow-lg shadow-indigo-500/20"
@@ -339,22 +363,24 @@ export default function App() {
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-r-full shadow-glow"></span>
                 )}
                 <span
-                  className={`text-xl transition-transform duration-200 ${
+                  className={`text-xl transition-transform duration-200 shrink-0 ${
                     isActive ? "scale-110" : "group-hover:scale-110"
                   }`}
                 >
                   {item.icon}
                 </span>
-                {sidebarExpanded && (
-                  <div className="flex-1 flex items-center justify-between truncate text-left animate-fade-in">
-                    <span className="text-sm font-semibold tracking-wide">{item.label}</span>
-                    {item.hotkey && (
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/10 text-indigo-300 border border-white/5">
-                        {item.hotkey}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div
+                  className={`flex-1 flex items-center justify-between truncate text-left animate-fade-in ${
+                    sidebarExpanded ? "flex" : "flex md:hidden"
+                  }`}
+                >
+                  <span className="text-sm font-semibold tracking-wide truncate">{item.label}</span>
+                  {item.hotkey && (
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/10 text-indigo-300 border border-white/5 shrink-0 ml-2">
+                      {item.hotkey}
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -362,18 +388,19 @@ export default function App() {
 
         {/* User Identity & Logout at bottom */}
         <div className="p-3 border-t border-white/10 bg-white/[0.02]">
-          {sidebarExpanded ? (
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-white/5 border border-white/5">
-              <div className="flex items-center gap-2.5 truncate">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-black text-white shadow-md">
+          {/* Expanded view (always on mobile, conditional on desktop) */}
+          <div className={`${sidebarExpanded ? "block" : "block md:hidden"}`}>
+            <div className="flex items-center justify-between p-2 rounded-2xl bg-white/5 border border-white/5 gap-2">
+              <div className="flex items-center gap-2.5 truncate min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-black text-white shadow-md shrink-0">
                   {user.username.charAt(0).toUpperCase()}
                 </div>
-                <div className="truncate">
+                <div className="truncate min-w-0">
                   <p className="text-xs font-bold text-white truncate">{user.username}</p>
-                  <p className="text-[9px] uppercase tracking-wider text-indigo-400 font-extrabold">{user.role}</p>
+                  <p className="text-[9px] uppercase tracking-wider text-indigo-400 font-extrabold truncate">{user.role}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => {
                     if (window.confirm("Securely wipe all offline cached consignments and terminate session? (Recommended on shared PCs)")) {
@@ -394,48 +421,63 @@ export default function App() {
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col gap-1.5 items-center">
-              <button
-                onClick={() => handleLogout(false)}
-                title="Logout Session"
-                className="w-full py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white transition-all flex justify-center text-sm"
-              >
-                ⏻
-              </button>
-            </div>
-          )}
+          </div>
+
+          {/* Desktop-only collapsed icon view */}
+          <div className={`${sidebarExpanded ? "hidden" : "hidden md:flex"} flex-col gap-1.5 items-center`}>
+            <button
+              onClick={() => handleLogout(false)}
+              title="Logout Session"
+              className="w-full py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-white transition-all flex justify-center text-sm"
+            >
+              ⏻
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* ══════════════════════════════════════════
           MAIN VIEWPORT & TOP GLASS HEADER
       ══════════════════════════════════════════ */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="glass-panel backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-40 transition-colors">
-          {/* Left: Location & System Status */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
-              <span className="text-sm">🏢</span>
-              <span className="text-xs font-black tracking-wide">
+      <main className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden relative">
+        <header className="glass-panel backdrop-blur-xl border-b border-white/20 dark:border-white/10 px-3 sm:px-6 md:px-8 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 sticky top-0 z-30 transition-colors">
+          {/* Left: Mobile Hamburger Toggle + Location & System Status */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 active:scale-95 transition-all flex items-center justify-center shrink-0"
+              aria-label="Open navigation menu"
+              title="Open Navigation Menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            {/* Branch Badge */}
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 max-w-[150px] sm:max-w-none">
+              <span className="text-xs sm:text-sm shrink-0">🏢</span>
+              <span className="text-[11px] sm:text-xs font-black tracking-wide truncate">
                 {user.branch === "All" ? "GLOBAL NETWORK (ALL)" : `BRANCH: ${user.branch.toUpperCase()}`}
               </span>
             </div>
 
+            {/* Network Online / Offline Status */}
             <div
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border text-[11px] font-bold ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-2xl border text-[10px] sm:text-[11px] font-bold shrink-0 ${
                 isOnline
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                   : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse"
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500 shadow-glow" : "bg-rose-500"}`}></span>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${isOnline ? "bg-emerald-500 shadow-glow" : "bg-rose-500"}`}></span>
               <span>{isOnline ? "Online" : "Offline Mode"}</span>
             </div>
           </div>
 
-          {/* Center: Interactive Shortcut Reference Bar */}
-          <div className="hidden lg:flex items-center gap-1.5 bg-black/5 dark:bg-white/5 backdrop-blur-md px-3 py-1 rounded-2xl border border-black/5 dark:border-white/10">
+          {/* Center: Interactive Shortcut Reference Bar (desktops only) */}
+          <div className="hidden xl:flex items-center gap-1.5 bg-black/5 dark:bg-white/5 backdrop-blur-md px-3 py-1 rounded-2xl border border-black/5 dark:border-white/10 shrink-0">
             <span className="text-[10px] uppercase font-black opacity-50 tracking-wider mr-1">Hotkeys:</span>
             <button
               onClick={() => setPage("delivery")}
@@ -486,14 +528,14 @@ export default function App() {
             </button>
           </div>
 
-          {/* Right: Actions, Sync, Emergency, Theme Toggle */}
-          <div className="flex items-center gap-2 md:gap-3">
+          {/* Right: Actions, Sync, Emergency, Theme Toggle - guaranteed wrapping and no overlap */}
+          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2.5 shrink-0">
             {/* Sync button */}
             <button
               onClick={syncData}
               disabled={isSyncing}
               title="Sync data with live server"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-xs font-bold transition-all shrink-0 active:scale-95"
             >
               <span className={`text-xs ${isSyncing ? "animate-spin" : ""}`}>🔄</span>
               <span className="hidden sm:inline">{isSyncing ? "Syncing..." : "Sync"}</span>
@@ -503,15 +545,15 @@ export default function App() {
             <button
               onClick={emergencySync}
               title="Emergency recovery from phone local storage"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-black shadow-md shadow-rose-500/20 hover:shadow-rose-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-black shadow-md shadow-rose-500/20 hover:shadow-rose-500/40 transition-all shrink-0 active:scale-95"
             >
-              <span>🛡️</span>
+              <span className="text-xs">🛡️</span>
               <span className="hidden sm:inline">Recover</span>
             </button>
 
             {/* Role Badge */}
             <span
-              className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-xl border tracking-wider ${
+              className={`text-[10px] font-black uppercase px-2 sm:px-2.5 py-1 rounded-xl border tracking-wider shrink-0 ${
                 user.role === "superadmin"
                   ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40"
                   : user.role === "admin"
@@ -526,7 +568,7 @@ export default function App() {
             <button
               onClick={() => setShowShortcutsModal(true)}
               title="Keyboard Shortcuts Cheat-Sheet [?]"
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-indigo-500/10 text-xs font-black font-mono transition-all hover:scale-105"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-white/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-indigo-500/10 text-xs font-black font-mono transition-all shrink-0 active:scale-95"
             >
               ⌨️
             </button>
@@ -535,7 +577,7 @@ export default function App() {
             <button
               onClick={toggleTheme}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-indigo-500/10 text-base transition-all hover:scale-105"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-white/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-indigo-500/10 text-sm sm:text-base transition-all shrink-0 active:scale-95"
             >
               {isDark ? "☀️" : "🌙"}
             </button>
@@ -543,7 +585,7 @@ export default function App() {
         </header>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 relative custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 relative custom-scrollbar">
           <div className="max-w-7xl mx-auto animate-fade-in pb-12">
             {page === "dashboard" && (
               <Dashboard
@@ -582,6 +624,7 @@ export default function App() {
             {page === "track" && (
               <Track
                 parcels={parcels}
+                users={users}
                 isDark={isDark}
                 user={user}
                 setGlobalView={setGlobalViewItem}

@@ -314,41 +314,49 @@ export default function Book({ shortcutMode, parcels, setParcels, db, showMsg, i
           <p className="text-[10px] font-black uppercase opacity-60 mb-2.5 tracking-wider text-indigo-400">
             Print Receipt Layouts:
           </p>
-          <div className="flex justify-center gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
             <button
               onClick={() => generatePDF(done, 1)}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all"
+              className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 sm:py-3 rounded-xl text-xs shadow-md transition-all active:scale-95 text-center"
             >
               1 Copy (Full)
             </button>
             <button
               onClick={() => generatePDF(done, 2)}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-indigo-600/30 transition-all"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 sm:py-3 rounded-xl text-xs shadow-md shadow-indigo-600/30 transition-all active:scale-95 text-center"
             >
               2 Copies (Half)
             </button>
             <button
               onClick={() => generatePDF(done, 3)}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs shadow-md shadow-emerald-600/30 transition-all"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 sm:py-3 rounded-xl text-xs shadow-md shadow-emerald-600/30 transition-all active:scale-95 text-center"
             >
               3 Copies (Third)
             </button>
             <button
               onClick={() => generateThermalLabelPDF(done)}
               title="Print Thermal 3x2 inch Box Sticker"
-              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-xs shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 sm:py-3 rounded-xl text-xs shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1 active:scale-95 text-center"
             >
               🏷️ Sticker
             </button>
           </div>
         </div>
 
-        <button
-          onClick={() => openWhatsApp(done.sPhone, true, done)}
-          className="w-full bg-[#25D366] hover:bg-[#1ebd59] text-white font-extrabold py-3.5 rounded-xl text-sm shadow-lg shadow-[#25D366]/20 transition-all flex items-center justify-center gap-2"
-        >
-          <span>💬</span> Send WhatsApp Consignment Receipt
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button
+            onClick={() => openWhatsApp(done.sPhone, true, done)}
+            className="w-full bg-[#25D366] hover:bg-[#1ebd59] text-white font-extrabold py-3.5 px-3 rounded-xl text-xs sm:text-sm shadow-lg shadow-[#25D366]/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+          >
+            <span>💬</span> Send WhatsApp to Sender
+          </button>
+          <button
+            onClick={() => openWhatsApp(done.rPhone, false, done)}
+            className="w-full bg-[#128C7E] hover:bg-[#075E54] text-white font-extrabold py-3.5 px-3 rounded-xl text-xs sm:text-sm shadow-lg shadow-[#128C7E]/20 transition-all flex items-center justify-center gap-2 active:scale-95"
+          >
+            <span>💬</span> Send WhatsApp to Receiver
+          </button>
+        </div>
 
         <button
           onClick={() => {

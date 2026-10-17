@@ -163,12 +163,12 @@ export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilt
     <div className="space-y-6">
       {/* Branch selector for Superadmin */}
       {(user.role === "superadmin" || user.branch === "All") && (
-        <div className="flex justify-end items-center gap-3">
+        <div className="flex flex-wrap justify-between sm:justify-end items-center gap-2 sm:gap-3">
           <label className="text-xs uppercase font-extrabold opacity-60">Network Scope:</label>
           <select
             value={selectedBranch}
             onChange={e => setSelectedBranch(e.target.value)}
-            className="p-2.5 px-4 rounded-2xl border font-bold text-xs outline-none bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-md focus:ring-2 focus:ring-indigo-500/30"
+            className="w-full sm:w-auto p-2.5 px-4 rounded-2xl border font-bold text-xs outline-none bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-md focus:ring-2 focus:ring-indigo-500/30"
           >
             <option value="All">🌍 Global Network (All Branches)</option>
             {CITIES.map(c => (
