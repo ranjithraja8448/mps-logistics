@@ -229,7 +229,7 @@ export function generateInvoicePDF(
 
   const pageWidth = 210;
   const pageHeight = 297;
-  const margin = 14;
+  const margin = 12;
 
   const formatDisplayDate = dStr => {
     if (!dStr) return "";
@@ -320,28 +320,17 @@ export function generateInvoicePDF(
 
   curY += 3.5;
 
-  const getCustomerName = (p, invCust) => {
-    const normInv = (invCust || "").trim().toLowerCase();
-    const s = (p.sName || "").trim();
-    const r = (p.rName || "").trim();
-
-    // If Sender matches invoice customer, show Receiver (the party delivered to)
-    if (s && normInv && s.toLowerCase().includes(normInv)) {
-      return r || s;
-    }
-    // If Receiver matches invoice customer, show Sender (the party who booked/sent)
-    if (r && normInv && r.toLowerCase().includes(normInv)) {
-      return s || r;
-    }
-    // If both exist and distinct
-    if (r && s) {
-      if (r.toLowerCase() === s.toLowerCase()) return r;
-      return `${s} ➔ ${r}`;
-    }
-    return r || s || "-";
-  };
-
-  const tableColumn = ["S.No", "LR Number", "Date", "From", "To", "Customer Name", "Article Qty", "Amount (Rs)"];
+  const tableColumn = [
+    "S.No",
+    "LR Number",
+    "Date",
+    "From",
+    "From Customer",
+    "To",
+    "To Customer",
+    "Article Qty",
+    "Amount (Rs)"
+  ];
   let totalAmount = 0;
   let totalPackages = 0;
 
@@ -361,8 +350,9 @@ export function generateInvoicePDF(
       p.id,
       p.date || "",
       p.from || "",
+      (p.sName || "-").trim(),
       p.to || "",
-      getCustomerName(p, customer),
+      (p.rName || "-").trim(),
       qty,
       price.toFixed(2)
     ];
@@ -375,17 +365,17 @@ export function generateInvoicePDF(
 
   const footRows = [];
   if (gstRate > 0) {
-    footRows.push(["Sub-Total", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
-    footRows.push([`Add GST (${gstRate}%)`, "", "", "", "", "", "", gstAmount.toFixed(2)]);
-    footRows.push(["Grand Total", "", "", "", "", "", "", grandTotal.toFixed(2)]);
+    footRows.push(["Sub-Total", "", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
+    footRows.push([`Add GST (${gstRate}%)`, "", "", "", "", "", "", "", gstAmount.toFixed(2)]);
+    footRows.push(["Grand Total", "", "", "", "", "", "", "", grandTotal.toFixed(2)]);
   } else {
-    footRows.push(["Total", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
+    footRows.push(["Total", "", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
   }
 
   // Single page fitting logic (up to 32 rows fit on 1 page with compact padding)
   const isSinglePage = sortedParcels.length <= 32;
   const rowPadding = isSinglePage ? 1.05 : 1.35;
-  const bodyFontSize = isSinglePage ? 7 : 7.2;
+  const bodyFontSize = isSinglePage ? 6.8 : 7.2;
 
   autoTable(doc, {
     startY: curY,
@@ -407,7 +397,7 @@ export function generateInvoicePDF(
       fillColor: [241, 245, 249],
       textColor: [15, 23, 42],
       fontStyle: "bold",
-      fontSize: 7.5,
+      fontSize: 7,
       halign: "center",
       cellPadding: 1.5,
       lineWidth: 0.2,
@@ -417,20 +407,21 @@ export function generateInvoicePDF(
       fillColor: [241, 245, 249],
       textColor: [15, 23, 42],
       fontStyle: "bold",
-      fontSize: 7.5,
+      fontSize: 7,
       cellPadding: 1.5,
       lineWidth: 0.2,
       lineColor: [148, 163, 184]
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 10 },
-      1: { fontStyle: "bold", cellWidth: 24 },
-      2: { halign: "center", cellWidth: 20 },
-      3: { cellWidth: 22 },
-      4: { cellWidth: 22 },
-      5: { cellWidth: 42 },
-      6: { halign: "center", fontStyle: "bold", cellWidth: 18 },
-      7: { halign: "right", fontStyle: "bold", cellWidth: 24 }
+      0: { halign: "center", cellWidth: 8 },
+      1: { fontStyle: "bold", cellWidth: 22 },
+      2: { halign: "center", cellWidth: 17 },
+      3: { cellWidth: 16 },
+      4: { cellWidth: 36 },
+      5: { cellWidth: 16 },
+      6: { cellWidth: 36 },
+      7: { halign: "center", fontStyle: "bold", cellWidth: 15 },
+      8: { halign: "right", fontStyle: "bold", cellWidth: 20 }
     },
     didDrawPage: function (data) {
       if (data.pageNumber > 1) {
