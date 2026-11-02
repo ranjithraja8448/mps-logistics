@@ -185,7 +185,7 @@ export default function Pending({ parcels, setParcels, db, showMsg, isDark, user
             <div>
               <p className="font-bold text-xs">Lots Selected for Outward Dispatch</p>
               <p className="text-[10px] opacity-80 font-mono">
-                {selectedSummary.articles} Articles | To-Pay Cash: ₹{selectedSummary.toPay.toLocaleString()}
+                {selectedSummary.articles} Articles | To-Pay Cash: ₹{selectedSummary.toPay.toLocaleString("en-IN")}
               </p>
             </div>
           </div>
@@ -426,10 +426,10 @@ export default function Pending({ parcels, setParcels, db, showMsg, isDark, user
                   <td colSpan="3" className="p-4 pr-6">
                     <div className="flex flex-wrap gap-3 text-xs bg-black/5 dark:bg-white/5 p-2 px-3 rounded-xl border border-slate-500/10">
                       {pendingPaid > 0 && (
-                        <span className="text-emerald-500 font-mono">Paid Value: ₹{pendingPaid.toLocaleString()}</span>
+                        <span className="text-emerald-500 font-mono">Paid Value: ₹{pendingPaid.toLocaleString("en-IN")}</span>
                       )}
                       {pendingToPay > 0 && (
-                        <span className="text-rose-500 font-mono">ToPay Value: ₹{pendingToPay.toLocaleString()}</span>
+                        <span className="text-rose-500 font-mono">ToPay Value: ₹{pendingToPay.toLocaleString("en-IN")}</span>
                       )}
                     </div>
                   </td>
@@ -514,7 +514,7 @@ export default function Pending({ parcels, setParcels, db, showMsg, isDark, user
               </div>
               <div>
                 <p className="text-[10px] uppercase font-black opacity-50">To-Pay Cash</p>
-                <p className="text-base font-black font-mono text-rose-500">₹{selectedSummary.toPay.toLocaleString()}</p>
+                <p className="text-base font-black font-mono text-rose-500">₹{selectedSummary.toPay.toLocaleString("en-IN")}</p>
               </div>
             </div>
 

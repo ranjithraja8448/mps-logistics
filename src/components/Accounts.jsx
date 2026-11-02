@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { CITIES } from "../constants";
 import { local } from "../services/db";
 import { generateEOD_PDF, shareEOD_WhatsApp, exportGSTR1_CSV } from "../utils/pdf";
+import { formatINR } from "../utils/pricing";
 
 export default function Accounts({ parcels, setParcels, db, showMsg, isDark, user }) {
   const dObj = new Date();
@@ -304,19 +305,19 @@ export default function Accounts({ parcels, setParcels, db, showMsg, isDark, use
           </div>
           <div className="p-4 rounded-2xl border border-dashed border-slate-500/20 bg-black/5 dark:bg-white/5 space-y-1">
             <span className="text-[10px] uppercase font-black opacity-60 tracking-wider">Cash Collected (Physical)</span>
-            <p className="text-2xl font-black font-mono text-emerald-400">₹{cashCollected.toLocaleString()}</p>
+            <p className="text-2xl font-black font-mono text-emerald-400">₹{formatINR(cashCollected)}</p>
             <p className="text-[10px] opacity-50">Branch In-Hand Cash</p>
           </div>
           <div className="p-4 rounded-2xl border border-dashed border-slate-500/20 bg-black/5 dark:bg-white/5 space-y-1">
             <span className="text-[10px] uppercase font-black opacity-60 tracking-wider">Commission Payout</span>
-            <p className="text-2xl font-black font-mono text-amber-400">₹{branchCommission.toLocaleString()}</p>
+            <p className="text-2xl font-black font-mono text-amber-400">₹{formatINR(branchCommission)}</p>
             <p className="text-[10px] opacity-50">@ ₹{payoutRate} per package unit</p>
           </div>
           <div className="p-4 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/10 space-y-1">
             <span className="text-[10px] uppercase font-black text-emerald-600 dark:text-emerald-400 tracking-wider">
               Net Remittance to HQ
             </span>
-            <p className="text-2xl font-black font-mono text-emerald-500">₹{netRemittance.toLocaleString()}</p>
+            <p className="text-2xl font-black font-mono text-emerald-500">₹{formatINR(netRemittance)}</p>
             <p className="text-[10px] opacity-70 font-semibold">
               {netRemittance >= 0 ? "Branch owes HQ" : "HQ owes Branch"}
             </p>
@@ -404,13 +405,13 @@ export default function Accounts({ parcels, setParcels, db, showMsg, isDark, use
                 />
               </div>
             </div>
-            <p className="text-xs opacity-60 font-semibold">Global System Base Net Profit: ₹{net.toLocaleString()}</p>
+            <p className="text-xs opacity-60 font-semibold">Global System Base Net Profit: ₹{formatINR(net)}</p>
           </div>
 
           <div className="my-6 bg-white/5 p-6 rounded-2xl text-center border border-white/10 backdrop-blur-md">
             <p className="text-[10px] opacity-60 uppercase tracking-widest font-black mb-1">Individual Dividend Yield</p>
             <p className="text-3xl md:text-4xl font-black font-mono text-emerald-400">
-              ₹{((net / (partnerCount || 1)) || 0).toLocaleString()}
+              ₹{formatINR((net / (partnerCount || 1)) || 0)}
             </p>
           </div>
 

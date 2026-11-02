@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { numberToWords } from "./pricing";
+import { numberToWords, formatINR } from "./pricing";
 
 export function drawReceipt(doc, p, startY) {
   doc.setDrawColor(0);
@@ -229,7 +229,12 @@ export function generateInvoicePDF(
 
   const pageWidth = 210;
   const pageHeight = 297;
-  const margin = 12;
+  const margin = 10;
+
+  const cleanParty = str => {
+    if (!str) return "-";
+    return str.replace(/["']/g, "").replace(/\s+/g, " ").trim();
+  };
 
   const formatDisplayDate = dStr => {
     if (!dStr) return "";
@@ -248,7 +253,7 @@ export function generateInvoicePDF(
   const billingRangeText = `${formatDisplayDate(fromD) || "Start"} to ${formatDisplayDate(toD) || "End"}`;
 
   // Company Brand Header
-  let curY = 12;
+  let curY = 10;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(15, 23, 42);
@@ -256,69 +261,73 @@ export function generateInvoicePDF(
 
   curY += 4.5;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text(
-    "Dharmapuri Main Road, Mecheri, Salem-Dt. 636 451 | GSTIN : 33CICPS6965E1Z1",
+    "Dharmapuri Main Road, Mecheri, Salem-Dt. 636 451 | GSTIN : 33CICPS6965E1Z1 | Ph: 90033 77185 / 80726 72255",
     pageWidth / 2,
     curY,
     { align: "center" }
   );
-
-  curY += 3.8;
-  doc.text("Phone Number : 90033 77185 / 80726 72255", pageWidth / 2, curY, { align: "center" });
 
   curY += 2.5;
   doc.setLineWidth(0.3);
   doc.setDrawColor(203, 213, 225);
   doc.line(margin, curY, pageWidth - margin, curY);
 
-  curY += 5;
+  curY += 4.5;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text("TAX INVOICE", pageWidth / 2, curY, { align: "center" });
+  doc.text("CONSOLIDATED TAX INVOICE", pageWidth / 2, curY, { align: "center" });
 
-  curY += 5;
-  // Customer & Invoice Details (Two Columns)
-  const leftX = margin;
-  const rightX = 118;
-  doc.setFontSize(8);
+  curY += 4;
+  // Two Rounded Cards (Billed To & Invoice Details)
+  const cardW = (pageWidth - margin * 2 - 4) / 2;
+  const cardH = 20;
 
+  // Left Card: Billed To
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, curY, cardW, cardH, 1.5, 1.5, "FD");
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(79, 70, 229);
+  doc.text("BILLED TO (CUSTOMER DETAILS)", margin + 3, curY + 4.2);
+
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("Customer Name  :", leftX, curY);
-  doc.setFont("helvetica", "normal");
-  doc.text(customer || "N/A", leftX + 26, curY);
+  doc.text((customer || "N/A").slice(0, 38), margin + 3, curY + 8.8);
 
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`GSTIN  : ${customerGst && customerGst.trim() ? customerGst.trim().toUpperCase() : "Unregistered"}`, margin + 3, curY + 13);
+  doc.text(`Phone  : ${customerPhone || "-"}`, margin + 3, curY + 17);
+
+  // Right Card: Invoice Details
+  const card2X = margin + cardW + 4;
+  doc.roundedRect(card2X, curY, cardW, cardH, 1.5, 1.5, "FD");
+
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("Invoice No   :", rightX, curY);
-  doc.setFont("helvetica", "normal");
-  doc.text(invoiceNo, rightX + 20, curY);
+  doc.setTextColor(79, 70, 229);
+  doc.text("INVOICE & BILLING METADATA", card2X + 3, curY + 4.2);
 
-  curY += 4.2;
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
-  doc.text("Contact Number :", leftX, curY);
-  doc.setFont("helvetica", "normal");
-  doc.text(customerPhone || "-", leftX + 26, curY);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Invoice No   : #${invoiceNo}`, card2X + 3, curY + 8.8);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Invoice Date :", rightX, curY);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text(printDate, rightX + 20, curY);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Invoice Date : ${printDate}`, card2X + 3, curY + 13);
+  doc.text(`Billing Range: ${billingRangeText}`, card2X + 3, curY + 17);
 
-  curY += 4.2;
-  doc.setFont("helvetica", "bold");
-  doc.text("GST Number     :", leftX, curY);
-  doc.setFont("helvetica", "normal");
-  doc.text(customerGst && customerGst.trim() ? customerGst.trim().toUpperCase() : "Unregistered", leftX + 26, curY);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Billing Range:", rightX, curY);
-  doc.setFont("helvetica", "normal");
-  doc.text(billingRangeText, rightX + 20, curY);
-
-  curY += 3.5;
+  curY += cardH + 3;
 
   const tableColumn = [
     "S.No",
@@ -328,7 +337,7 @@ export function generateInvoicePDF(
     "From Customer",
     "To",
     "To Customer",
-    "Article Qty",
+    "Qty",
     "Amount (Rs)"
   ];
   let totalAmount = 0;
@@ -350,11 +359,11 @@ export function generateInvoicePDF(
       p.id,
       p.date || "",
       p.from || "",
-      (p.sName || "-").trim(),
+      cleanParty(p.sName),
       p.to || "",
-      (p.rName || "-").trim(),
+      cleanParty(p.rName),
       qty,
-      price.toFixed(2)
+      formatINR(price, 2)
     ];
   });
 
@@ -365,21 +374,35 @@ export function generateInvoicePDF(
 
   const footRows = [];
   if (gstRate > 0) {
-    footRows.push(["Sub-Total", "", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
-    footRows.push([`Add GST (${gstRate}%)`, "", "", "", "", "", "", "", gstAmount.toFixed(2)]);
-    footRows.push(["Grand Total", "", "", "", "", "", "", "", grandTotal.toFixed(2)]);
+    footRows.push([
+      { content: "Sub-Total", colSpan: 7, styles: { halign: "right", fontStyle: "bold" } },
+      { content: String(totalPackages), styles: { halign: "center", fontStyle: "bold" } },
+      { content: formatINR(totalAmount, 2), styles: { halign: "right", fontStyle: "bold" } }
+    ]);
+    footRows.push([
+      { content: `Add GST (${gstRate}%)`, colSpan: 8, styles: { halign: "right", fontStyle: "bold" } },
+      { content: formatINR(gstAmount, 2), styles: { halign: "right", fontStyle: "bold" } }
+    ]);
+    footRows.push([
+      { content: "Grand Total", colSpan: 8, styles: { halign: "right", fontStyle: "bold" } },
+      { content: formatINR(grandTotal, 2), styles: { halign: "right", fontStyle: "bold" } }
+    ]);
   } else {
-    footRows.push(["Total", "", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
+    footRows.push([
+      { content: "Total", colSpan: 7, styles: { halign: "right", fontStyle: "bold" } },
+      { content: String(totalPackages), styles: { halign: "center", fontStyle: "bold" } },
+      { content: formatINR(totalAmount, 2), styles: { halign: "right", fontStyle: "bold" } }
+    ]);
   }
 
-  // Single page fitting logic (up to 32 rows fit on 1 page with compact padding)
-  const isSinglePage = sortedParcels.length <= 32;
+  // Single page fitting logic (up to 34 rows fit on 1 page with compact padding)
+  const isSinglePage = sortedParcels.length <= 34;
   const rowPadding = isSinglePage ? 1.05 : 1.35;
   const bodyFontSize = isSinglePage ? 6.8 : 7.2;
 
   autoTable(doc, {
     startY: curY,
-    margin: { left: margin, right: margin, top: 18, bottom: 46 },
+    margin: { left: margin, right: margin, top: 20, bottom: 46 },
     head: [tableColumn],
     body: tableRows,
     foot: footRows,
@@ -387,9 +410,9 @@ export function generateInvoicePDF(
     showHead: "everyPage",
     theme: "grid",
     styles: {
-      cellPadding: rowPadding,
+      cellPadding: { top: rowPadding, bottom: rowPadding, left: 1, right: 1 },
       fontSize: bodyFontSize,
-      lineColor: [203, 213, 225],
+      lineColor: [210, 215, 225],
       lineWidth: 0.15,
       textColor: [30, 41, 59]
     },
@@ -397,9 +420,9 @@ export function generateInvoicePDF(
       fillColor: [241, 245, 249],
       textColor: [15, 23, 42],
       fontStyle: "bold",
-      fontSize: 7,
+      fontSize: 7.2,
       halign: "center",
-      cellPadding: 1.5,
+      cellPadding: { top: 1.6, bottom: 1.6, left: 1, right: 1 },
       lineWidth: 0.2,
       lineColor: [148, 163, 184]
     },
@@ -407,31 +430,32 @@ export function generateInvoicePDF(
       fillColor: [241, 245, 249],
       textColor: [15, 23, 42],
       fontStyle: "bold",
-      fontSize: 7,
-      cellPadding: 1.5,
+      fontSize: 7.2,
+      cellPadding: { top: 1.6, bottom: 1.6, left: 1, right: 1 },
       lineWidth: 0.2,
       lineColor: [148, 163, 184]
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 8 },
-      1: { fontStyle: "bold", cellWidth: 22 },
-      2: { halign: "center", cellWidth: 17 },
-      3: { cellWidth: 16 },
+      0: { halign: "center", cellWidth: 10 },
+      1: { halign: "center", fontStyle: "bold", cellWidth: 24 },
+      2: { halign: "center", cellWidth: 18 },
+      3: { cellWidth: 20 },
       4: { cellWidth: 36 },
-      5: { cellWidth: 16 },
-      6: { cellWidth: 36 },
-      7: { halign: "center", fontStyle: "bold", cellWidth: 15 },
-      8: { halign: "right", fontStyle: "bold", cellWidth: 20 }
+      5: { cellWidth: 18 },
+      6: { cellWidth: 34 },
+      7: { halign: "center", fontStyle: "bold", cellWidth: 12 },
+      8: { halign: "right", fontStyle: "bold", cellWidth: 18 }
     },
     didDrawPage: function (data) {
       if (data.pageNumber > 1) {
+        doc.setFillColor(15, 23, 42);
+        doc.rect(margin, 8, pageWidth - margin * 2, 8, "F");
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(71, 85, 105);
-        doc.text(`MPS PARCEL SERVICE — INVOICE No: ${invoiceNo} (Continued)`, margin, 12);
-        doc.setLineWidth(0.2);
-        doc.setDrawColor(203, 213, 225);
-        doc.line(margin, 14, pageWidth - margin, 14);
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`MPS PARCEL SERVICE — INVOICE No: ${invoiceNo} (Continued)`, margin + 4, 13.5);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Customer: ${customer}`, pageWidth - margin - 4, 13.5, { align: "right" });
       }
     }
   });

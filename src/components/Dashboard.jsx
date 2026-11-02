@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { CITIES, STATUSES, S_CLR } from "../constants";
 import { generateListPDF } from "../utils/pdf";
+import { formatINR } from "../utils/pricing";
 import PrintGroup from "./common/PrintGroup";
 
 export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilter, setGlobalView }) {
@@ -216,7 +217,7 @@ export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilt
           </div>
           <div className="mt-3">
             <span className="text-2xl md:text-3xl font-black text-indigo-500 font-mono tracking-tight">
-              ₹{rev.toLocaleString()}
+              ₹{formatINR(rev)}
             </span>
             <p className="text-[10px] opacity-50 mt-0.5 font-semibold">Gross Valuation</p>
           </div>
@@ -279,7 +280,7 @@ export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilt
           </div>
           <div className="mt-3">
             <span className="text-2xl md:text-3xl font-black text-emerald-500 font-mono tracking-tight">
-              ₹{tCollected.toLocaleString()}
+              ₹{formatINR(tCollected)}
             </span>
             <p className="text-[10px] opacity-50 mt-0.5 font-semibold">Today's Collections</p>
           </div>
@@ -384,7 +385,7 @@ export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilt
                         <div>
                           <p className="font-extrabold text-sm">{staff}</p>
                           <p className="text-[10px] font-mono text-indigo-400 font-bold">
-                            Total: ₹{stats.totalValue.toLocaleString()}
+                            Total: ₹{formatINR(stats.totalValue)}
                           </p>
                         </div>
                       </div>
@@ -408,7 +409,7 @@ export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilt
                           <span className="text-purple-500">Credit: ₹{stats.credit}</span>
                         </div>
                         <div className="text-xs font-black text-emerald-500 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-                          💵 Physical Cash to Handover: ₹{stats.collected.toLocaleString()}
+                          💵 Physical Cash to Handover: ₹{formatINR(stats.collected)}
                         </div>
                         <div className="space-y-1.5 pt-1">
                           {stats.parcels.map(p => (
@@ -444,11 +445,11 @@ export default function Dashboard({ parcels, isDark, user, setPage, setTrackFilt
             <div className="mt-3 pt-3 border-t border-slate-500/10 flex justify-between items-center text-xs">
               <div>
                 <span className="text-[10px] uppercase font-bold opacity-50">Date Total:</span>
-                <p className="font-black text-sm text-indigo-400 font-mono">₹{tTotalValue.toLocaleString()} Value</p>
+                <p className="font-black text-sm text-indigo-400 font-mono">₹{formatINR(tTotalValue)} Value</p>
               </div>
               <div className="text-right">
                 <span className="text-[10px] uppercase font-bold opacity-50">Net Cash Handover:</span>
-                <p className="font-black text-sm text-emerald-500 font-mono">₹{tCollected.toLocaleString()}</p>
+                <p className="font-black text-sm text-emerald-500 font-mono">₹{formatINR(tCollected)}</p>
               </div>
             </div>
           )}

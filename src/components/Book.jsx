@@ -665,7 +665,7 @@ export default function Book({ shortcutMode, parcels, setParcels, db, showMsg, i
               <span className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-400">
                 Calculated Freight Value
               </span>
-              <p className="text-3xl md:text-4xl font-black font-mono text-emerald-400 mt-1">₹{ep.toLocaleString()}</p>
+              <p className="text-3xl md:text-4xl font-black font-mono text-emerald-400 mt-1">₹{ep.toLocaleString("en-IN")}</p>
               <p className="text-[10px] opacity-60 mt-0.5">Mode: {f.payment}</p>
             </div>
             <div className="text-right">

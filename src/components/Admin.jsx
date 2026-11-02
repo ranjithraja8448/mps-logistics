@@ -719,7 +719,7 @@ export default function Admin({
                 </p>
               </div>
               <span className="bg-rose-500 text-white px-4 py-2 rounded-xl text-sm font-black font-mono shadow-md shadow-rose-500/30">
-                Total Outstanding: ₹{grandTotalCredit.toLocaleString()}
+                Total Outstanding: ₹{grandTotalCredit.toLocaleString("en-IN")}
               </span>
             </div>
             {Object.keys(customerBalances).length === 0 ? (
@@ -738,7 +738,7 @@ export default function Admin({
                       <span className="font-extrabold text-xs text-slate-400 truncate mb-1" title={customer}>
                         {customer}
                       </span>
-                      <span className="font-black font-mono text-rose-500 text-xl">₹{amt.toLocaleString()}</span>
+                      <span className="font-black font-mono text-rose-500 text-xl">₹{amt.toLocaleString("en-IN")}</span>
                     </div>
                   ))}
               </div>

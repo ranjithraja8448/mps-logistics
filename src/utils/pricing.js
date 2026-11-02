@@ -80,3 +80,11 @@ export function numberToWords(num) {
   str += n[5] != 0 ? (str != "" ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) + "Only" : "Only";
   return str.toUpperCase();
 }
+
+export function formatINR(val, decimals = 0) {
+  const num = Number(val) || 0;
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}

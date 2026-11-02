@@ -400,17 +400,17 @@ export default function Track({ parcels, users = [], isDark, user, setGlobalView
                   <td colSpan="4" className="p-4 pr-6">
                     <div className="flex flex-col gap-1 text-xs">
                       <span className="text-base font-black font-mono text-indigo-400">
-                        Total: ₹{totalAmt.toLocaleString()}
+                        Total: ₹{totalAmt.toLocaleString("en-IN")}
                       </span>
                       <div className="flex flex-wrap gap-2 text-[11px] font-mono">
                         {totalPaid > 0 && (
-                          <span className="text-emerald-500">Paid: ₹{totalPaid.toLocaleString()}</span>
+                          <span className="text-emerald-500">Paid: ₹{totalPaid.toLocaleString("en-IN")}</span>
                         )}
                         {totalToPay > 0 && (
-                          <span className="text-rose-500">ToPay: ₹{totalToPay.toLocaleString()}</span>
+                          <span className="text-rose-500">ToPay: ₹{totalToPay.toLocaleString("en-IN")}</span>
                         )}
                         {totalCredit > 0 && (
-                          <span className="text-purple-400">Credit: ₹{totalCredit.toLocaleString()}</span>
+                          <span className="text-purple-400">Credit: ₹{totalCredit.toLocaleString("en-IN")}</span>
                         )}
                       </div>
                     </div>
