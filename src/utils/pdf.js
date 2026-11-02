@@ -221,36 +221,127 @@ export function generateInvoicePDF(
   manualInvDate,
   gstPercent
 ) {
-  const doc = new jsPDF();
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text("MPS Parcel Service", 105, 15, { align: "center" });
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("Address : Dharmapuri Main Road, Mecheri, Salem-Dt. 636 451. GST : 33CICPS6965E1Z1", 105, 20, {
-    align: "center"
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
   });
-  doc.text("Phone Number : 90033 77185 / 80726 72255", 105, 24, { align: "center" });
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("INVOICE", 105, 34, { align: "center" });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const margin = 14;
+
+  const formatDisplayDate = dStr => {
+    if (!dStr) return "";
+    if (typeof dStr === "string" && dStr.includes("-")) {
+      const parts = dStr.split("T")[0].split("-");
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dStr;
+  };
 
   const invoiceNo = manualInvoiceNo || "N/A";
   const printDate = manualInvDate
-    ? new Date(manualInvDate).toLocaleDateString("en-IN")
+    ? formatDisplayDate(manualInvDate)
     : new Date().toLocaleDateString("en-IN");
 
-  doc.setFontSize(9);
-  doc.text(`Customer Name  :  ${customer}`, 14, 44);
-  doc.text(`Invoice No   :  ${invoiceNo}`, 135, 44);
-  doc.text(`Contact Number :  ${customerPhone}`, 14, 50);
-  doc.text(`Date         :  ${printDate}`, 135, 50);
-  doc.text(`GST Number     :  ${customerGst || "Unregistered"}`, 14, 56);
-  doc.text(`Billing Range:  ${fromD || "Start"} to ${toD || "End"}`, 135, 56);
+  const billingRangeText = `${formatDisplayDate(fromD) || "Start"} to ${formatDisplayDate(toD) || "End"}`;
 
-  let yOffset = 62;
-  const tableColumn = ["S.No", "LR Number", "Date", "From", "To", "Article Qty", "Amount (Rs)"];
-  const tableRows = [];
+  // Company Brand Header
+  let curY = 12;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(15, 23, 42);
+  doc.text("MPS PARCEL SERVICE", pageWidth / 2, curY, { align: "center" });
+
+  curY += 4.5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text(
+    "Dharmapuri Main Road, Mecheri, Salem-Dt. 636 451 | GSTIN : 33CICPS6965E1Z1",
+    pageWidth / 2,
+    curY,
+    { align: "center" }
+  );
+
+  curY += 3.8;
+  doc.text("Phone Number : 90033 77185 / 80726 72255", pageWidth / 2, curY, { align: "center" });
+
+  curY += 2.5;
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(203, 213, 225);
+  doc.line(margin, curY, pageWidth - margin, curY);
+
+  curY += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  doc.text("TAX INVOICE", pageWidth / 2, curY, { align: "center" });
+
+  curY += 5;
+  // Customer & Invoice Details (Two Columns)
+  const leftX = margin;
+  const rightX = 118;
+  doc.setFontSize(8);
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("Customer Name  :", leftX, curY);
+  doc.setFont("helvetica", "normal");
+  doc.text(customer || "N/A", leftX + 26, curY);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Invoice No   :", rightX, curY);
+  doc.setFont("helvetica", "normal");
+  doc.text(invoiceNo, rightX + 20, curY);
+
+  curY += 4.2;
+  doc.setFont("helvetica", "bold");
+  doc.text("Contact Number :", leftX, curY);
+  doc.setFont("helvetica", "normal");
+  doc.text(customerPhone || "-", leftX + 26, curY);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Invoice Date :", rightX, curY);
+  doc.setFont("helvetica", "normal");
+  doc.text(printDate, rightX + 20, curY);
+
+  curY += 4.2;
+  doc.setFont("helvetica", "bold");
+  doc.text("GST Number     :", leftX, curY);
+  doc.setFont("helvetica", "normal");
+  doc.text(customerGst && customerGst.trim() ? customerGst.trim().toUpperCase() : "Unregistered", leftX + 26, curY);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Billing Range:", rightX, curY);
+  doc.setFont("helvetica", "normal");
+  doc.text(billingRangeText, rightX + 20, curY);
+
+  curY += 3.5;
+
+  const getCustomerName = (p, invCust) => {
+    const normInv = (invCust || "").trim().toLowerCase();
+    const s = (p.sName || "").trim();
+    const r = (p.rName || "").trim();
+
+    // If Sender matches invoice customer, show Receiver (the party delivered to)
+    if (s && normInv && s.toLowerCase().includes(normInv)) {
+      return r || s;
+    }
+    // If Receiver matches invoice customer, show Sender (the party who booked/sent)
+    if (r && normInv && r.toLowerCase().includes(normInv)) {
+      return s || r;
+    }
+    // If both exist and distinct
+    if (r && s) {
+      if (r.toLowerCase() === s.toLowerCase()) return r;
+      return `${s} ➔ ${r}`;
+    }
+    return r || s || "-";
+  };
+
+  const tableColumn = ["S.No", "LR Number", "Date", "From", "To", "Customer Name", "Article Qty", "Amount (Rs)"];
   let totalAmount = 0;
   let totalPackages = 0;
 
@@ -260,74 +351,182 @@ export function generateInvoicePDF(
     return d1 - d2;
   });
 
-  sortedParcels.forEach((p, index) => {
-    const parcelData = [index + 1, p.id, p.date, p.from, p.to, p.count || 1, p.price];
-    tableRows.push(parcelData);
-    totalAmount += Number(p.price) || 0;
-    totalPackages += Number(p.count) || 0;
+  const tableRows = sortedParcels.map((p, index) => {
+    const price = Number(p.price) || 0;
+    const qty = Number(p.count) || 1;
+    totalAmount += price;
+    totalPackages += qty;
+    return [
+      index + 1,
+      p.id,
+      p.date || "",
+      p.from || "",
+      p.to || "",
+      getCustomerName(p, customer),
+      qty,
+      price.toFixed(2)
+    ];
   });
 
-  // 🔥 GST CALCULATION LOGIC 🔥
+  // GST Calculation
   const gstRate = Number(gstPercent) || 0;
   const gstAmount = Math.round((totalAmount * gstRate) / 100);
   const grandTotal = totalAmount + gstAmount;
 
+  const footRows = [];
   if (gstRate > 0) {
-    tableRows.push(["Sub-Total", "", "", "", "", totalPackages.toString(), totalAmount.toString()]);
-    tableRows.push([`Add GST (${gstRate}%)`, "", "", "", "", "", gstAmount.toString()]);
-    tableRows.push(["Grand Total", "", "", "", "", "", grandTotal.toString()]);
+    footRows.push(["Sub-Total", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
+    footRows.push([`Add GST (${gstRate}%)`, "", "", "", "", "", "", gstAmount.toFixed(2)]);
+    footRows.push(["Grand Total", "", "", "", "", "", "", grandTotal.toFixed(2)]);
   } else {
-    tableRows.push(["Total", "", "", "", "", totalPackages.toString(), totalAmount.toString()]);
+    footRows.push(["Total", "", "", "", "", "", `${totalPackages}`, totalAmount.toFixed(2)]);
   }
 
+  // Single page fitting logic (up to 32 rows fit on 1 page with compact padding)
+  const isSinglePage = sortedParcels.length <= 32;
+  const rowPadding = isSinglePage ? 1.05 : 1.35;
+  const bodyFontSize = isSinglePage ? 7 : 7.2;
+
   autoTable(doc, {
-    startY: yOffset + 5,
+    startY: curY,
+    margin: { left: margin, right: margin, top: 18, bottom: 46 },
     head: [tableColumn],
     body: tableRows,
+    foot: footRows,
+    showFoot: "lastPage",
+    showHead: "everyPage",
     theme: "grid",
-    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold", fontSize: 9, halign: "center" },
-    bodyStyles: { fontSize: 8, textColor: [0, 0, 0] },
-    columnStyles: {
-      0: { halign: "center" },
-      1: { fontStyle: "bold" },
-      5: { halign: "center" },
-      6: { halign: "right", fontStyle: "bold" }
+    styles: {
+      cellPadding: rowPadding,
+      fontSize: bodyFontSize,
+      lineColor: [203, 213, 225],
+      lineWidth: 0.15,
+      textColor: [30, 41, 59]
     },
-    willDrawCell: function (data) {
-      const isTotalRow = data.row.index >= sortedParcels.length;
-      if (isTotalRow) {
-        data.cell.styles.fontStyle = "bold";
-        data.cell.styles.fillColor = [245, 245, 245];
-        if (data.row.index === tableRows.length - 1 && gstRate > 0) {
-          data.cell.styles.fillColor = [230, 230, 230];
-        }
+    headStyles: {
+      fillColor: [241, 245, 249],
+      textColor: [15, 23, 42],
+      fontStyle: "bold",
+      fontSize: 7.5,
+      halign: "center",
+      cellPadding: 1.5,
+      lineWidth: 0.2,
+      lineColor: [148, 163, 184]
+    },
+    footStyles: {
+      fillColor: [241, 245, 249],
+      textColor: [15, 23, 42],
+      fontStyle: "bold",
+      fontSize: 7.5,
+      cellPadding: 1.5,
+      lineWidth: 0.2,
+      lineColor: [148, 163, 184]
+    },
+    columnStyles: {
+      0: { halign: "center", cellWidth: 10 },
+      1: { fontStyle: "bold", cellWidth: 24 },
+      2: { halign: "center", cellWidth: 20 },
+      3: { cellWidth: 22 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 42 },
+      6: { halign: "center", fontStyle: "bold", cellWidth: 18 },
+      7: { halign: "right", fontStyle: "bold", cellWidth: 24 }
+    },
+    didDrawPage: function (data) {
+      if (data.pageNumber > 1) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        doc.text(`MPS PARCEL SERVICE — INVOICE No: ${invoiceNo} (Continued)`, margin, 12);
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(203, 213, 225);
+        doc.line(margin, 14, pageWidth - margin, 14);
       }
     }
   });
 
-  const finalY = doc.lastAutoTable.finalY || yOffset + 5;
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text(`Net Payable Amount : RUPEES ${numberToWords(grandTotal)}`, 14, finalY + 8);
+  let finalY = doc.lastAutoTable.finalY + 3;
+  const footerHeight = 44;
+
+  // Add new page if remaining space is insufficient for the footer
+  if (finalY + footerHeight > pageHeight - 12) {
+    doc.addPage();
+    finalY = 16;
+  }
+
+  // Net Payable Banner
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(margin, finalY, pageWidth - margin * 2, 7.5, "FD");
+
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Print DateTime : ${new Date().toLocaleString("en-IN")}`, 14, finalY + 14);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  const wordsText = grandTotal === 0 ? "ZERO ONLY" : numberToWords(grandTotal) || "ZERO ONLY";
+  doc.text(`Net Payable Amount : RUPEES ${wordsText}`, margin + 3, finalY + 5);
+
+  finalY += 9.5;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Print DateTime : ${new Date().toLocaleString("en-IN")}`, margin, finalY);
+
+  finalY += 3.5;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 41, 59);
   doc.text(
-    "Remark : Respected and Dear Valued Customer, Kindly ensure to make the payment within 10 days of Bill receipt.",
-    14,
-    finalY + 22
+    "Remark : Respected Valued Customer, Kindly ensure to make the payment within 10 days of Bill receipt.",
+    margin,
+    finalY
   );
-  doc.text("Bank Details for Payment:", 14, finalY + 32);
-  doc.setFont("helvetica", "normal");
-  doc.text("Bank Name : Tamilnad Mercantile Bank (TMB)", 14, finalY + 38);
-  doc.text("A/C Name  : MECHERI PARCEL SERVICE", 14, finalY + 43);
-  doc.text("A/C No    : 287150050800853", 14, finalY + 48);
-  doc.text("IFSC Code : TMBL0000287", 14, finalY + 53);
-  doc.text("Branch    : MECHERI", 14, finalY + 58);
+
+  finalY += 3.5;
+  const boxWidth = (pageWidth - margin * 2 - 6) / 2;
+  const boxHeight = 26;
+
+  // Left Box: Bank Details
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(margin, finalY, boxWidth, boxHeight, 1.5, 1.5, "D");
+
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
-  doc.text("For MECHERI PARCEL SERVICE", 135, finalY + 50);
-  doc.text("Authorised Signatory", 140, finalY + 68);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Bank Details for Payment (NEFT / RTGS / IMPS):", margin + 3, finalY + 4.5);
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text("Bank Name : Tamilnad Mercantile Bank (TMB)", margin + 3, finalY + 8.5);
+  doc.text("A/C Name  : MECHERI PARCEL SERVICE", margin + 3, finalY + 12.5);
+  doc.text("A/C No    : 287150050800853", margin + 3, finalY + 16.5);
+  doc.text("IFSC Code : TMBL0000287  |  Branch: MECHERI", margin + 3, finalY + 20.5);
+
+  // Right Box: Authorized Signatory
+  const rightBoxX = margin + boxWidth + 6;
+  doc.roundedRect(rightBoxX, finalY, boxWidth, boxHeight, 1.5, 1.5, "D");
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("For MECHERI PARCEL SERVICE", rightBoxX + boxWidth / 2, finalY + 5, { align: "center" });
+
+  doc.setFontSize(6.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text("(Authorised Signatory)", rightBoxX + boxWidth / 2, finalY + boxHeight - 3, { align: "center" });
+
+  // Page Numbers on all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("MPS Logistics & Parcel Service — Computer Generated Invoice", margin, pageHeight - 6);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: "right" });
+  }
+
   window.open(doc.output("bloburl"), "_blank");
 }
 
